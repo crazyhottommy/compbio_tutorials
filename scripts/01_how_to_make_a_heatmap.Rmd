@@ -1,0 +1,132 @@
+---
+title: "1_how_to_make_a_heatmap"
+author: "Ming Tang"
+date: "5/2/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+Making heatmap is an essential skill for any computational biologist.
+
+
+### load the libraries 
+
+```{r}
+library(ComplexHeatmap)
+
+```
+
+### make dummy data 
+
+```{r}
+
+h1 <- c(10,20,10,20,10,20,10,20)
+h2 <- c(20,10,20,10,20,10,20,10)
+
+l1 <- c(1,3,1,3,1,3,1,3)
+l2 <- c(3,1,3,1,3,1,3,1)
+
+mat <- rbind(h1,h2,l1,l2)
+colnames(mat)<- paste0("timepoint_", 1:8)
+```
+
+
+visualize the data 
+
+```{r}
+par(mfrow =c(1,1), mar=c(4,4,1,1))
+plot(1:8,rep(0,8), ylim=c(0,35), pch="", xlab="Time", ylab="Gene Expression")
+
+for (i in 1:nrow(mat)) {
+lines(1:8,mat[i,], lwd=3, col=i)
+}
+
+legend(1,35,rownames(mat), 1:4, cex=0.7)
+```
+
+### Making a heatmap is easy!
+
+```{r}
+Heatmap(mat, cluster_columns = FALSE)
+
+quantile(mat, c(0, 0.1,0.5, 0.9))
+```
+
+
+change color mapping 
+
+```{r}
+col_fun<- circlize::colorRamp2(c(0, 3, 20), c("blue", "white", "red"))
+
+Heatmap(mat, cluster_columns = FALSE, col = col_fun)
+```
+
+
+outlier 
+
+```{r}
+mat2<- mat
+mat2[1,1]<- 1000
+
+Heatmap(mat2, cluster_columns = FALSE)
+
+Heatmap(mat2, cluster_columns = FALSE, col = col_fun)
+
+```
+
+Let's scale the data/gene expression level across columns (time points) first
+
+```{r}
+scaled_mat<- t(scale(t(mat)))
+
+scaled_mat
+
+Heatmap(scaled_mat, cluster_columns = FALSE)
+```
+
+Note, after scaling, h1 and l1 are close to each other!
+
+### understand clustering?
+
+define distances 
+
+```{r}
+?dist
+
+d<- dist(mat)
+
+d
+```
+
+
+```{r}
+?hclust
+
+hclust(d)
+
+
+plot(hclust(d))
+```
+
+
+After scaling 
+```{r}
+
+d2<- dist(scaled_mat)
+
+plot(hclust(d2))
+```
+
+Key takeaways:
+1. color mapping is critical
+2. scaling is critical 
+3. making heatmap is easy, but better to understand the details.
+
+
+
+
+
+
+
