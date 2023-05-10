@@ -1,0 +1,173 @@
+---
+title: "differential_expression_heatmap"
+author: "Ming Tang"
+date: "5/9/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Let's use a real example https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE197576
+
+How to download the files from ftp https://www.ncbi.nlm.nih.gov/geo/info/download.html
+
+https://ftp.ncbi.nlm.nih.gov/geo/series/GSE197nnn/GSE197576/suppl/
+
+Alternative use GEOquery https://bioconductor.org/packages/release/bioc/html/GEOquery.html
+
+```{bash eval=FALSE}
+wget https://ftp.ncbi.nlm.nih.gov/geo/series/GSE197nnn/GSE197576/suppl/GSE197576_raw_gene_counts_matrix.tsv.gz
+
+csvtk pretty -t  GSE197576_raw_gene_counts_matrix.tsv.gz | less -S
+
+csvtk headers -t   GSE197576_raw_gene_counts_matrix.tsv.gz
+
+csvtk cut -t -f1,2,3,12,13 GSE197576_raw_gene_counts_matrix.tsv.gz| head
+
+csvtk cut -t -f1,2,3,12,13 GSE197576_raw_gene_counts_matrix.tsv.gz > raw_counts.tsv
+```
+
+Get csvtk at https://github.com/shenwei356/csvtk
+
+### read the data into R and make a DESeq2 object 
+
+follow the tutorial http://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
+
+```{r}
+library(dplyr)
+library(readr)
+library(here)
+library(DESeq2)
+
+raw_counts<- read_tsv(here("data/raw_counts.tsv"))
+
+raw_counts_mat<- raw_counts[, -1] %>% as.matrix
+
+head(raw_counts_mat)
+
+rownames(raw_counts_mat)<- raw_counts$gene
+head(raw_counts_mat)
+
+```
+
+Make a sample sheet 
+
+```{r}
+coldata<- data.frame(condition = c("normoxia", "normoxia", "hypoxia", "hypoxia"))
+
+rownames(coldata)<- colnames(raw_counts_mat)
+
+coldata
+```
+
+Make a DEseq2 object
+
+```{r}
+all(rownames(coldata) == colnames(raw_counts_mat))
+
+dds <- DESeqDataSetFromMatrix(countData = raw_counts_mat,
+                              colData = coldata,
+                              design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds, contrast = c("condition", "hypoxia", "normoxia"))
+
+res %>%
+  as.data.frame() %>%
+  arrange((padj), desc(log2FoldChange)) %>%
+  head(n=30)
+
+
+significant_genes<- res %>%
+  as.data.frame() %>%
+  filter(padj <=0.01, abs(log2FoldChange) >= 2) %>% 
+  rownames()
+
+
+significant_genes
+```
+
+
+### PCA analysis
+
+```{r}
+vsd <- vst(dds, blind=FALSE)
+
+plotPCA(vsd, intgroup=c("condition"))
+```
+
+
+Plot PCA by ourselves.
+
+```{r}
+vsd <- vst(dds, blind=FALSE)
+head(assay(vsd), 3)
+
+normalized_counts<- assay(vsd) %>% 
+  as.matrix()
+
+pca_prcomp<- prcomp(t(normalized_counts), center = TRUE, scale. = FALSE)
+
+names(pca_prcomp)
+pca_prcomp$x
+
+PC1_and_PC2<- data.frame(PC1=pca_prcomp$x[,1], PC2= pca_prcomp$x[,2], 
+                         type = rownames(pca_prcomp$x))
+
+## plot PCA plot
+library(ggplot2)
+
+ggplot(PC1_and_PC2, aes(x=PC1, y=PC2, col=type)) + 
+  geom_point() + 
+  geom_text(aes(label = type), hjust=0, vjust=0) +
+  coord_fixed()
+```
+
+It is not exactly the same, what's going on? 
+
+
+```{r}
+?plotPCA #using the top 500 most variable genes
+
+```
+
+https://github.com/mikelove/DESeq2/blob/48b80aaac5efd4b9e0d054fc1e4a6e1fa78e782a/R/plots.R#LL245C71-L245C71
+
+
+### Make a perfect heatmap
+
+```{r}
+library(ComplexHeatmap)
+
+significant_mat<- normalized_counts[significant_genes, ] 
+
+Heatmap(t(scale(t(significant_mat))))
+
+```
+
+
+Yeah, you get this perfect looking heatmap because we select the genes that are different. So, no surprise at all!
+
+
+```{r}
+coldata
+
+col_anno <- HeatmapAnnotation(df = coldata, 
+                             col = list( condition = c("hypoxia" = "red", "normoxia" = "blue")))
+
+
+Heatmap(t(scale(t(significant_mat))), 
+        top_annotation = col_anno,
+        show_row_names = FALSE,
+        name = "scaled normalized\nexpression")
+```
+
+why scaling is important?
+
+
+```{r}
+Heatmap(significant_mat, 
+        top_annotation = col_anno,
+        show_row_names = FALSE,
+        name = "scaled normalized\nexpression")
+```
+
