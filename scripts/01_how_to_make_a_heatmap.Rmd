@@ -30,6 +30,7 @@ l2 <- c(3,1,3,1,3,1,3,1)
 
 mat <- rbind(h1,h2,l1,l2)
 colnames(mat)<- paste0("timepoint_", 1:8)
+mat
 ```
 
 
@@ -82,7 +83,7 @@ Let's scale the data/gene expression level across columns (time points) first
 scaled_mat<- t(scale(t(mat)))
 
 scaled_mat
-
+?Heatmap
 Heatmap(scaled_mat, cluster_columns = FALSE)
 ```
 
