@@ -1,0 +1,182 @@
+---
+title: "volcano plot with ggrepel"
+author: "Ming Tang"
+date: "5/16/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+Continue with https://github.com/crazyhottommy/compbio_tutorials/blob/main/scripts/02_differential_expression_heatmap.Rmd
+
+### read the data into R and make a DESeq2 object 
+
+follow the tutorial http://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
+
+```{r}
+library(dplyr)
+library(readr)
+library(here)
+library(DESeq2)
+library(ggplot2)
+
+raw_counts<- read_tsv(here("data/raw_counts.tsv"))
+
+raw_counts_mat<- raw_counts[, -1] %>% as.matrix
+
+head(raw_counts_mat)
+
+rownames(raw_counts_mat)<- raw_counts$gene
+head(raw_counts_mat)
+
+```
+
+Make a sample sheet 
+
+```{r}
+coldata<- data.frame(condition = c("normoxia", "normoxia", "hypoxia", "hypoxia"))
+
+rownames(coldata)<- colnames(raw_counts_mat)
+
+coldata
+```
+
+Make a DEseq2 object
+
+```{r}
+all(rownames(coldata) == colnames(raw_counts_mat))
+
+dds <- DESeqDataSetFromMatrix(countData = raw_counts_mat,
+                              colData = coldata,
+                              design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds, contrast = c("condition", "hypoxia", "normoxia"))
+
+head(res)
+```
+
+### Make a volcano plot
+
+what is a volcano plot?
+
+It is a scatter plot:
+x-axis is the log2Fold change
+
+y-axis is -log10(p-value)
+
+
+```{r}
+res %>% 
+  as.data.frame() %>%
+  ggplot(aes(x = log2FoldChange, y = -log10(pvalue))) +
+  geom_point()
+  
+```
+
+hmm, what are the points on the top?
+
+```{r}
+res %>%
+  as.data.frame() %>%
+  arrange((padj), desc(log2FoldChange)) %>%
+  head(n = 30)
+```
+
+A basic volcano plot
+
+```{r}
+res %>% 
+  as.data.frame() %>%
+  ggplot(aes(x = log2FoldChange, y = -log10(pvalue))) +
+  geom_point() +
+  theme_bw(base_size = 14)
+```
+
+How to label the genes?
+
+```{r}
+
+res %>% 
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = "gene") %>%
+  filter(!stringr::str_detect(gene, "LOC")) %>% 
+  filter(abs(log2FoldChange)>=4, padj <= 0.001) %>%
+  dim()
+
+
+res_sig<- res %>% 
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = "gene") %>%
+  filter(!stringr::str_detect(gene, "LOC")) %>% 
+  filter(abs(log2FoldChange)>=4, padj <= 0.001) 
+  
+
+res %>% 
+  as.data.frame() %>%
+  ggplot(aes(x = log2FoldChange, y = -log10(pvalue))) +
+  geom_point() +
+  geom_label(data = res_sig, aes(label = gene))+
+  theme_bw(base_size = 14)
+```
+
+
+the labels are overlapping, let's improve by ggrepel
+```{r}
+#install.packages("ggrepel")
+library(ggrepel )
+
+
+res %>% 
+  as.data.frame() %>%
+  ggplot(aes(x = log2FoldChange, y = -log10(pvalue))) +
+  geom_point() +
+  ggrepel::geom_label_repel(data = res_sig, aes(label = gene))+
+  theme_bw(base_size = 14)
+```
+
+
+Let's color the points 
+
+```{r}
+res2<- res %>% 
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = "gene") %>%
+  mutate(sig = case_when(
+    !stringr::str_detect(gene, "LOC") & abs(log2FoldChange)>=4 & 
+      padj <= 0.001 ~ "sig",
+    TRUE ~ "not sig"
+  ))
+  
+head(res2)
+
+ggplot(res2, aes(x = log2FoldChange, y = -log10(pvalue))) +
+  geom_point(aes(color = sig)) +
+  ggrepel::geom_label_repel(data = res_sig, aes(label = gene))+
+  theme_bw(base_size = 14)
+```
+
+
+fix the color of the points 
+
+```{r}
+ggplot(res2, aes(x = log2FoldChange, y = -log10(pvalue))) +
+  geom_point(aes(color = sig)) +
+  scale_color_manual(values = c("blue", "red")) +
+  ggrepel::geom_label_repel(data = res_sig, aes(label = gene))+
+  theme_bw(base_size = 14)
+```
+
+add horizontal and vertical lines
+```{r}
+ggplot(res2, aes(x = log2FoldChange, y = -log10(pvalue))) +
+  geom_point(aes(color = sig)) +
+  scale_color_manual(values = c("blue", "red")) +
+  ggrepel::geom_label_repel(data = res_sig, aes(label = gene))+
+  geom_hline(yintercept = 100, linetype = 2, color = "red") +
+  geom_vline(xintercept = c(-4, 4), linetype = 2, color = "red")+
+  theme_bw(base_size = 14)
+```
+
+Enhanced volcanoplot: https://bioconductor.org/packages/devel/bioc/vignettes/EnhancedVolcano/inst/doc/EnhancedVolcano.html
+
