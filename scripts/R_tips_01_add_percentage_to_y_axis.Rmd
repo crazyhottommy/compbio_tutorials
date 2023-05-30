@@ -1,0 +1,143 @@
+---
+title: "add percentage to y axis"
+author: "Ming Tang"
+date: "5/28/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+### How to add percentages to the y-axis of a bar plot and how to order the bar plot by the value of each bar.
+
+The transcripts and genes for a reference sequence UCSC annotation https://genome.ucsc.edu/
+
+The TxDb family of packages and data objects manages information on transcripts and gene models. We consider those derived from annotation tables prepared for the UCSC genome browser.
+
+```{r}
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(dplyr)
+library(ggplot2)
+
+txdb<- TxDb.Hsapiens.UCSC.hg19.knownGene # abbreviate
+txdb
+
+```
+
+```{r}
+genes(txdb)
+
+#exons(txdb)
+```
+
+always check the first several rows first 
+
+```{r}
+genes(txdb) %>%
+  as.data.frame() %>%
+  head()
+```
+
+Let's count how many genes in each chromosomes 
+
+```{r}
+genes_df<- genes(txdb) %>%
+  as.data.frame()
+
+genes_df %>%
+  dplyr::count(seqnames)
+```
+
+Let's remove the unconventional chromosomes first
+
+```{r}
+conventional_chrs<- paste0("chr", c(1:22, "X", "Y"))
+
+total_gene<- genes_df %>%
+  filter(seqnames %in% conventional_chrs) %>%
+  nrow()
+
+
+genes_per_chr<- genes_df %>%
+  filter(seqnames %in% conventional_chrs) %>%
+  dplyr::count(seqnames)
+
+genes_per_chr %>%
+  mutate(genes_percent = n/total_gene)
+```
+
+make the figure 
+```{r}
+genes_per_chr %>%
+  mutate(genes_percent = n/total_gene) %>%
+  ggplot(aes(x= seqnames, y = genes_percent)) +
+  geom_bar(stat = "identity")
+```
+
+
+rotate the x-axis
+
+```{r}
+genes_per_chr %>%
+  mutate(genes_percent = n/total_gene) %>%
+  ggplot(aes(x= seqnames, y = genes_percent)) +
+  geom_bar( stat = "identity") +
+  xlab("") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+```
+
+use them_bw
+```{r}
+genes_per_chr %>%
+  mutate(genes_percent = n/total_gene) %>%
+  ggplot(aes(x= seqnames, y = genes_percent)) +
+  geom_bar( stat = "identity") +
+  xlab("") + 
+  theme_bw(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) 
+```
+
+change y-axis to percentage
+
+```{r}
+genes_per_chr %>%
+  mutate(genes_percent = n/total_gene) %>%
+  ggplot(aes(x= seqnames, y = genes_percent)) +
+  geom_bar(stat = "identity") +
+  xlab("") + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme_bw(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) 
+```
+
+Reorder the bar from small to big:
+
+https://forcats.tidyverse.org/reference/fct_reorder.html
+
+```{r}
+genes_per_chr %>%
+  mutate(genes_percent = n/total_gene) %>%
+  ggplot(aes(x= seqnames %>% 
+               forcats::fct_reorder(genes_percent)
+               , y = genes_percent)) +
+  geom_bar(stat = "identity") +
+  xlab("") + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme_bw(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) 
+```
+
+reverse the order 
+
+```{r}
+genes_per_chr %>%
+  mutate(genes_percent = n/total_gene) %>%
+  ggplot(aes(x= seqnames %>% 
+               forcats::fct_reorder(genes_percent, .desc = TRUE)
+               , y = genes_percent)) +
+  geom_bar(stat = "identity") +
+  xlab("") + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme_bw(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) 
+```
+
