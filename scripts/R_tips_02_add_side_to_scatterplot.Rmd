@@ -1,0 +1,189 @@
+---
+title: "R_tips_02_add_side_to_scatterplot"
+author: "Ming Tang"
+date: "6/2/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+### introduce ggside using single cell data 
+
+The ggside R package provides a new way to visualize data by combining the flexibility of ggplot2 with the power of side-by-side plots.
+
+We will use a single cell dataset to demonstrate its usage.
+
+ggside allows users to create side-by-side plots of multiple variables, such as gene expression, cell type, and experimental conditions. This can be helpful for identifying patterns and trends in scRNA-seq data that would be difficult to see in individual plots. Additionally, ggside provides a number of features that make it easy to customize the appearance of side-by-side plots, such as changing the color scheme, adding labels, and adjusting the layout.
+
+https://cran.r-project.org/web/packages/ggside/vignettes/ggside_basic_usage.html
+
+### Load libraries 
+```{r}
+# install.packages("ggside")
+library(ggside)
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+```
+
+load data 
+```{r}
+data("pbmc3k")
+
+pbmc3k
+```
+
+
+### routine processing
+
+```{r}
+pbmc3k<- pbmc3k %>% 
+  NormalizeData(normalization.method = "LogNormalize", scale.factor = 10000) %>%
+  FindVariableFeatures(selection.method = "vst", nfeatures = 2000) %>%
+  ScaleData() %>%
+  RunPCA(verbose = FALSE) %>%
+  FindNeighbors(dims = 1:10, verbose = FALSE) %>%
+  FindClusters(resolution = 0.5, verbose = FALSE) %>%
+  RunUMAP(dims = 1:10, verbose = FALSE)
+
+Idents(pbmc3k)<- pbmc3k$seurat_annotations
+
+DimPlot(pbmc3k, label = TRUE, repel=TRUE) + NoLegend()
+```
+
+
+some helper functions to extract the gene expression values from the seurat object 
+
+```{r}
+matrix_to_expression_df<- function(x, obj){
+        df<- x %>%
+                as.matrix() %>% 
+                as.data.frame() %>%
+                tibble::rownames_to_column(var= "gene") %>%
+                tidyr::pivot_longer(cols = -1, names_to = "cell", values_to = "expression") %>%
+                tidyr::pivot_wider(names_from = "gene", values_from = expression) %>%
+                left_join(obj@meta.data %>% 
+                                  tibble::rownames_to_column(var = "cell"))
+        return(df)
+}
+
+
+get_expression_data<- function(obj, assay = "RNA", slot = "data", 
+                               genes = NULL, cells = NULL){
+        if (is.null(genes) & !is.null(cells)){
+                df<- GetAssayData(obj, assay = assay, slot = slot)[, cells, drop = FALSE] %>%
+                        matrix_to_expression_df(obj = obj)
+        } else if (!is.null(genes) & is.null(cells)){
+                df <- GetAssayData(obj, assay = assay, slot = slot)[genes, , drop = FALSE] %>%
+                        matrix_to_expression_df(obj = obj)
+        } else if (is.null(genes & is.null(cells))){
+                df <- GetAssayData(obj, assay = assay, slot = slot)[, , drop = FALSE] %>%
+                        matrix_to_expression_df(obj = obj)
+        } else {
+                df<- GetAssayData(obj, assay = assay, slot = slot)[genes, cells, drop = FALSE] %>%
+                        matrix_to_expression_df(obj = obj)
+        }
+        return(df)
+}
+```
+
+
+test the function 
+
+```{r}
+df<- get_expression_data(obj = pbmc3k, genes = c("CD14", "FCGR3A"))
+
+head(df)
+```
+
+
+a plain scatter plot
+```{r}
+df %>%
+  filter(seurat_annotations %in% c("CD14+ Mono", "FCGR3A+ Mono")) %>%
+  ggplot(aes(x= CD14, y = FCGR3A)) +
+  geom_point(aes(color = seurat_annotations))
+```
+
+
+a scatter plot adding two boxplots 
+
+```{r}
+df %>%
+  filter(seurat_annotations %in% c("CD14+ Mono", "FCGR3A+ Mono")) %>%
+  ggplot(aes(x= CD14, y = FCGR3A)) +
+  geom_point(aes(color = seurat_annotations)) +
+  geom_xsideboxplot(aes(y = seurat_annotations, color = seurat_annotations), 
+                    orientation = "y") +
+  geom_ysideboxplot(aes(x = seurat_annotations, color = seurat_annotations), 
+                    orientation = "x")+
+  scale_xsidey_discrete() +
+  scale_ysidex_discrete()+
+  theme(ggside.panel.scale.x = 0.2,
+       ggside.panel.scale.y = 0.3)
+```
+
+a scatterplot adding one boxplot and one density plot
+
+```{r}
+df %>%
+  filter(seurat_annotations %in% c("CD14+ Mono", "FCGR3A+ Mono")) %>%
+  ggplot(aes(x= CD14, y = FCGR3A)) +
+  geom_point(aes(color = seurat_annotations)) +
+  geom_xsideboxplot(aes(y = seurat_annotations, color = seurat_annotations), 
+                    orientation = "y") +
+  geom_ysidedensity(aes(x = after_stat(density), color = seurat_annotations, fill = seurat_annotations), 
+                    position = "stack", alpha = 0.4) +
+  scale_xsidey_discrete() +
+  scale_ysidex_continuous(guide = guide_axis(angle = 90), minor_breaks = NULL) +
+  theme(ggside.panel.scale.x = 0.2,
+       ggside.panel.scale.y = 0.4)
+```
+
+### alternative way: use patchwork 
+
+https://patchwork.data-imaginist.com/
+
+```{r}
+library(patchwork)
+
+p1<- df %>%
+  filter(seurat_annotations %in% c("CD14+ Mono", "FCGR3A+ Mono")) %>%
+  ggplot(aes(x= seurat_annotations, y = CD14)) +
+  geom_boxplot(aes(color = seurat_annotations)) + 
+  xlab("") +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    #legend.position = "none", legend.text = element_blank()
+  )+
+  coord_flip()
+
+p2<- df %>%
+  filter(seurat_annotations %in% c("CD14+ Mono", "FCGR3A+ Mono")) %>%
+  ggplot(aes(x= CD14, y = FCGR3A)) +
+  geom_point(aes(color = seurat_annotations)) +
+  theme(legend.position = "none", legend.text = element_blank()) 
+
+p3<- df %>%
+  filter(seurat_annotations %in% c("CD14+ Mono", "FCGR3A+ Mono")) %>%
+  ggplot(aes(x= seurat_annotations, y = FCGR3A)) +
+  geom_boxplot(aes(color = seurat_annotations)) +
+  theme(legend.position = "none") +
+  ylab("") +
+  xlab("") +
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  ) 
+
+p1 + plot_spacer() + p2 + p3 +
+   plot_layout(widths = c(4, 2), heights = c(1, 5),
+               guides = 'collect')
+
+```
+
+
+
