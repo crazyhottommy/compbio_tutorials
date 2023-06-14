@@ -1,0 +1,63 @@
+---
+title: "R_tips_04_list_column_dataframe_in_dataframe"
+author: "Ming Tang"
+date: "6/13/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+```
+
+
+make a list column by using tidyr::nest()
+```{r}
+mtcars_list<- mtcars %>%
+  group_by(cyl) %>%
+  tidyr::nest()
+
+mtcars_list$data[[1]]
+mtcars_list$data[[2]]
+
+```
+
+list column can even contain ggplot2 object
+
+```{r}
+mtcars_list<- mtcars_list %>%
+  mutate(plots = purrr::map(data, ~ggplot(.x, aes(x= hp, y = mpg)) + geom_point()))
+
+mtcars_list
+```
+
+save the plots
+
+```{r}
+walk2(mtcars_list$cyl, mtcars_list$plots, 
+      ~ ggsave(filename = paste0("~/Downloads/cyl", .x, "_plot.pdf"), 
+               plot = .y, width = 4, height = 4))
+
+# side effect 
+map2(mtcars_list$cyl, mtcars_list$plots, 
+      ~ ggsave(filename = paste0("~/Downloads/cyl", .x, "_plot.pdf"), 
+               plot = .y, width = 4, height = 4))
+```
+
+
+nest by two variables 
+
+```{r}
+mtcars_list2<- mtcars %>%
+  group_by(cyl, gear) %>%
+  nest()
+
+mtcars_list2 %>% 
+  mutate(filename = paste0("cyl", cyl, "_gear", gear))
+```
+
