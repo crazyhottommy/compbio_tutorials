@@ -1,0 +1,48 @@
+---
+title: "read in all files"
+author: "Ming Tang"
+date: "6/14/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+### combine all the counts into a single dataframe
+
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE197320
+
+```{r}
+library(tidyverse)
+library(purrr)
+
+file1<- read_tsv("~/Downloads/GSE197320_RAW/GSM5914555_SKOV3_ALDH_Veh_Rep1_Genes_ReadCount.txt.gz",
+                 col_names = FALSE)
+
+files<- list.files("~/Downloads/GSE197320_RAW", full.names = TRUE)
+
+
+samples<- basename(files) %>%
+  str_replace(".+_ALDH_(.+)_Genes_ReadCount.txt.gz", "\\1")
+
+
+read_count<- function(x, sample){
+  df<- read_tsv(x, col_names = FALSE)
+  names(df)<- c("gene", sample)
+  return(df)
+}
+
+counts<- map2(files,samples,read_count)
+
+counts_table<- purrr::reduce(counts, inner_join) 
+
+head(counts_table)
+```
+
+
+
+```{r}
+bind_cols(counts) %>%
+  head()
+
+```
+
