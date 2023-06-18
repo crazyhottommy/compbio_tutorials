@@ -1,0 +1,83 @@
+---
+title: "05_find_tissue_specific_genes_human_protein_atlas"
+author: "Ming Tang"
+date: "6/15/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+http://www.bioconductor.org/packages/devel/bioc/vignettes/HPAanalyze/inst/doc/b_HPAanalyze_indepth.html
+
+
+```{r}
+#BiocManager::install("HPAanalyze")
+library(tidyverse)
+library(HPAanalyze)
+```
+
+Most of the time, you will only need the “histology” datasets, which contain normal_tissue, pathology (basically cancers) and subcellular_location.
+
+```{r}
+downloadedData <- hpaDownload(downloadList='histology')
+```
+
+The `normal_tissue` dataset contains information about protein expression profiles in human tissues based on IHC staining. The datasets contain six columns: ensembl (Ensembl gene identifier); gene (HGNC symbol), tissue (tissue name); cell_type (annotated cell type); level (expression value); reliability (the gene reliability of the expression value)
+
+```{r}
+
+names(downloadedData)
+
+downloadedData$normal_tissue %>%
+  head()
+
+table(downloadedData$normal_tissue$level)
+
+downloadedData$normal_tissue %>%
+  filter(cell_type == "smooth muscle cells") %>%
+  janitor::tabyl(tissue, cell_type)
+
+downloadedData$normal_tissue %>%
+  pivot_wider(names_from = c("tissue", "cell_type"), values_from = "level") %>%
+  View()
+
+data<- downloadedData$normal_tissue %>%
+  pivot_wider(names_from = c("tissue", "cell_type"), values_from = "level") %>%
+  filter(`smooth muscle_smooth muscle cells` %in% c("High", "Medium"))
+
+View(data)
+```
+
+what are the membrane genes
+
+```{r}
+head(downloadedData$subcellular_location)
+
+table(downloadedData$subcellular_location$main_location) %>% 
+  sort()
+
+memberane_genes<- downloadedData$subcellular_location %>% 
+  filter(str_detect(main_location, "Plasma membrane")) 
+
+inner_join(data, memberane_genes, by = c("ensembl" = "ensembl")) 
+```
+
+
+Make a heatmap 
+
+```{r}
+library(ComplexHeatmap)
+
+data2<- data %>% 
+  filter(gene %in% memberane_genes$gene)
+  
+mat<- as.matrix(data2[, -c(1,2,3)])
+rownames(mat)<- data2$gene
+
+ComplexHeatmap::Heatmap(mat,
+                        show_row_names = FALSE,
+                        show_column_names = FALSE)
+```
+
+
+
