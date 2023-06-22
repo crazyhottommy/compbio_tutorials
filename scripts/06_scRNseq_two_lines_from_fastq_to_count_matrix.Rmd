@@ -1,0 +1,165 @@
+---
+title: "06_two_lines_command_scNAseq_from_fastq_to_count_matrix"
+author: "Ming Tang"
+date: "6/19/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+### Let's use 10x genomics data 
+
+https://www.10xgenomics.com/resources/datasets/human-pbmc-from-a-healthy-donor-1-k-cells-v-2-2-standard-4-0-0
+
+
+install tools 
+
+gget https://github.com/pachterlab/gget
+
+https://github.com/mamba-org/mamba
+
+https://www.kallistobus.tools/
+
+```{bash}
+mamba create -n kb-python python=3.7
+conda activate kb-python
+pip install kb-python gget ffq
+
+```
+
+
+```{bash}
+time kb ref \
+  -i index.idx \
+  -g t2g.txt \
+  -f1 transcriptome.fa \
+  $(gget ref --ftp -w dna,gtf homo_sapiens)
+  
+  
+Mon Jun 19 23:26:27 2023 INFO Fetching reference information for homo_sapiens from Ensembl release: 109.
+[2023-06-19 23:26:30,564]    INFO [ref] Preparing http://ftp.ensembl.org/pub/release-109/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz, http://ftp.ensembl.org/pub/release-109/gtf/homo_sapiens/Homo_sapiens.GRCh38.109.gtf.gz
+[2023-06-19 23:28:19,733]    INFO [ref] Splitting genome http://ftp.ensembl.org/pub/release-109/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz into cDNA at /Users/tommytang/playground/tmp/tmp6352jm21
+[2023-06-19 23:52:12,318]    INFO [ref] Concatenating 1 cDNAs to transcriptome.fa
+[2023-06-19 23:52:14,048]    INFO [ref] Creating transcript-to-gene mapping at t2g.txt
+[2023-06-19 23:52:17,463]    INFO [ref] Indexing transcriptome.fa to index.idx
+kb ref -i index.idx -g t2g.txt -f1 transcriptome.fa   716.34s user 32.85s system 36% cpu 34:25.42 total
+```
+
+A little over 10 mins
+
+prepare fastq input
+
+```{bash}
+cd sc5p_v2_hs_PBMC_1k_5gex_fastqs
+
+ls -1d  sc5p_v2_hs_PBMC_1k_5gex_fastqs/* | grep -E "R1|R2"
+
+ls -1d  sc5p_v2_hs_PBMC_1k_5gex_fastqs/* | grep -E "R1|R2" | tr "\n" " " 
+
+sc5p_v2_hs_PBMC_1k_5gex_S1_L001_R1_001.fastq.gz	sc5p_v2_hs_PBMC_1k_5gex_S1_L001_R2_001.fastq.gz	sc5p_v2_hs_PBMC_1k_5gex_S1_L002_R1_001.fastq.gz	sc5p_v2_hs_PBMC_1k_5gex_S1_L002_R2_001.fastq.gz
+```
+
+```{bash}
+time kb count \
+  -i index.idx \
+  -g t2g.txt \
+  -x 10xv2 \
+  -t 8 \
+  -m 16G \
+  -o out \
+  sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L001_R1_001.fastq.gz sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L001_R2_001.fastq.gz sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L002_R1_001.fastq.gz sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L002_R2_001.fastq.gz
+  
+  
+
+[2023-06-21 22:04:33,465]    INFO [count] Using index index.idx to generate BUS file to out from
+[2023-06-21 22:04:33,466]    INFO [count]         sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L001_R1_001.fastq.gz
+[2023-06-21 22:04:33,466]    INFO [count]         sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L001_R2_001.fastq.gz
+[2023-06-21 22:04:33,466]    INFO [count]         sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L002_R1_001.fastq.gz
+[2023-06-21 22:04:33,466]    INFO [count]         sc5p_v2_hs_PBMC_1k_5gex_fastqs/sc5p_v2_hs_PBMC_1k_5gex_S1_L002_R2_001.fastq.gz
+
+[2023-06-21 22:06:50,383]    INFO [count] Sorting BUS file out/output.bus to out/tmp/output.s.bus
+[2023-06-21 22:07:05,398]    INFO [count] Whitelist not provided
+[2023-06-21 22:07:05,399]    INFO [count] Copying pre-packaged 10XV2 whitelist to out
+[2023-06-21 22:07:05,513]    INFO [count] Inspecting BUS file out/tmp/output.s.bus
+[2023-06-21 22:07:08,064]    INFO [count] Correcting BUS records in out/tmp/output.s.bus to out/tmp/output.s.c.bus with whitelist out/10x_version2_whitelist.txt
+[2023-06-21 22:07:12,351]    INFO [count] Sorting BUS file out/tmp/output.s.c.bus to out/output.unfiltered.bus
+[2023-06-21 22:07:26,625]    INFO [count] Generating count matrix out/counts_unfiltered/cells_x_genes from BUS file out/output.unfiltered.bus
+kb count -i index.idx -g t2g.txt -x 10xv2 -t 8 -m 16G -o out      851.81s user 26.97s system 469% cpu 3:07.26 total
+
+```
+
+30 seconds!
+
+read in the unfiltered count matrix and filter out the empty droplets
+```{r}
+library(Matrix, quietly=T) # load libraries
+library(DropletUtils, quietly=T)
+library(dplyr)
+library(ggplot2)
+```
+
+read in the matrix, genes and barcodes
+
+```{r}
+raw_mtx <- readMM('~/playground/out/counts_unfiltered/cells_x_genes.mtx')
+genes <- read.csv('~/playground/out/counts_unfiltered/cells_x_genes.genes.txt', sep = '\t', header = F) 
+barcodes<- read.csv('~/playground/out/counts_unfiltered/cells_x_genes.barcodes.txt', sep = '\t', header = F) 
+
+
+raw_mtx<- t(raw_mtx)
+rownames(raw_mtx) <- genes[,1] # attach gene_ids
+colnames(raw_mtx) <- barcodes[,1]
+```
+
+draw knee plot
+
+```{r}
+tot_counts <- colSums(raw_mtx)
+
+df <- tibble(total = tot_counts,
+             rank = row_number(desc(total))) %>%
+      distinct() %>%
+      arrange(rank)
+
+ggplot(df, aes(total, rank)) +
+  geom_path() +
+  scale_x_log10() + 
+  scale_y_log10() + 
+  annotation_logticks() +
+  labs(y = "Barcode rank", x = "Total UMI count")
+```
+
+
+
+```{r}
+out <- emptyDrops(raw_mtx) # get probability that each barcode is a cell
+keep <- out$FDR <= 0.05 # define threshold probability for calling a cell
+keep[is.na(keep)] <- FALSE
+filt_mtx <- raw_mtx[,keep] # subset raw mtx to remove empty drops
+
+dim(filt_mtx)
+```
+
+### SRR files from SRA 
+
+https://github.com/pachterlab/ffq
+
+
+```{bash}
+ffq SRR9990627
+```
+
+
+
+```{bash}
+time kb count \
+  -i index.idx \
+  -g t2g.txt \
+  -x 10xv2 \
+  -t 8 \
+  -m 16G \
+  -o out \
+  $(ffq --ftp SRR10668798 | jq -r '.[] | .url' | tr '\n' ' ')
+```
+
+
