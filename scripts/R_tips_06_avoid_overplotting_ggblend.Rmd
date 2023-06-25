@@ -1,0 +1,99 @@
+---
+title: "avoid overplotting ggblend"
+author: "Ming Tang"
+date: "6/21/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## How to avoid overplotting with ggblend
+
+https://mjskay.github.io/ggblend/
+
+We’ll construct a simple dataset with two semi-overlapping point clouds. We’ll have two versions of the dataset: one with all the "a" points listed first, and one with all the "b" points listed first.
+
+```{r}
+library(ggplot2)
+library(ggblend)
+
+theme_set(ggdist::theme_ggdist() + theme(
+  plot.title = element_text(size = rel(1), lineheight = 1.1, face = "bold"),
+  plot.subtitle = element_text(face = "italic"),
+  panel.border = element_rect(color = "gray75", fill = NA)
+))
+
+```
+
+
+
+```{r}
+set.seed(1234)
+df_a = data.frame(x = rnorm(500, 0), y = rnorm(500, 1), set = "a")
+df_b = data.frame(x = rnorm(500, 1), y = rnorm(500, 2), set = "b")
+
+df_ab = rbind(df_a, df_b) |>
+  transform(order = "draw a then b")
+
+df_ba = rbind(df_b, df_a) |>
+  transform(order = "draw b then a")
+
+df = rbind(df_ab, df_ba)
+```
+
+
+```{r}
+df |>
+  ggplot(aes(x, y, color = set)) +
+  geom_point(size = 3, alpha = 0.5) +
+  scale_color_brewer(palette = "Set1") +
+  facet_grid(~ order) +
+  labs(title = "geom_point() without blending", subtitle = "Draw order matters.")
+```
+
+
+
+```{r}
+df |>
+  ggplot(aes(x, y, color = set)) +
+  geom_point(size = 3, alpha = 0.5) |> blend("multiply") +
+  scale_color_brewer(palette = "Set1") +
+  facet_grid(~ order) +
+  labs(
+    title = "geom_point(alpha = 0.5) |> blend('multiply')",
+    subtitle = "Draw order does not matter, but color is too dark."
+  )
+```
+
+
+Rstudio graphic device does not support blend
+```{r}
+df |>
+  ggplot(aes(x, y, color = set, partition = set)) +
+  geom_point(size = 3, alpha = 0.5) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
+  scale_color_brewer(palette = "Set1") +
+  facet_grid(~ order) +
+  labs(
+    title = "geom_point(aes(partition = set)) * (blend('lighten') + blend('multiply', alpha = 0.5))",
+    subtitle = "Two order-independent blends on one layer using the distributive law."
+  ) +
+  theme(plot.subtitle = element_text(lineheight = 1.2))
+```
+
+
+```{r}
+cairo_pdf("~/github_repos/compbio_tutorials/results/blend.pdf", width = 6, height = 4)
+df |>
+  ggplot(aes(x, y, color = set, partition = set)) +
+  geom_point(size = 3, alpha = 0.5) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
+  scale_color_brewer(palette = "Set1") +
+  facet_grid(~ order) +
+  labs(
+    title = "geom_point(aes(partition = set)) * (blend('lighten') + blend('multiply', alpha = 0.5))",
+    subtitle = "Two order-independent blends on one layer using the distributive law."
+  ) +
+  theme(plot.subtitle = element_text(lineheight = 1.2))
+
+dev.off()
+```
+
