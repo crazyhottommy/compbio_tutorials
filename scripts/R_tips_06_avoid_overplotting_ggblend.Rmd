@@ -83,6 +83,7 @@ df |>
 
 ```{r}
 cairo_pdf("~/github_repos/compbio_tutorials/results/blend.pdf", width = 6, height = 4)
+
 df |>
   ggplot(aes(x, y, color = set, partition = set)) +
   geom_point(size = 3, alpha = 0.5) * (blend("lighten") + blend("multiply", alpha = 0.5)) +

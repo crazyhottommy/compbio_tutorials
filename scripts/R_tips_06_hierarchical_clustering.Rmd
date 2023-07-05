@@ -1,0 +1,221 @@
+---
+title: "clustering in R"
+author: "Ming Tang"
+date: '2023-06-30'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+In hierarchical clustering, a dendrogram is a diagram that shows the hierarchical relationship between the clusters that are formed. It is a tree-like diagram that is commonly used to visualize the results of hierarchical clustering. A dendrogram can help you to understand how the different clusters are related to each other, and it can also be used to determine the optimal number of clusters for your data. To create a dendrogram, the distances between each pair of clusters are calculated and then represented graphically using a tree-like structure, with the clusters being represented by the branches and the distance between the clusters being represented by the length of the branches. By looking at a dendrogram, you can see which clusters are more closely related to each other and which are more distantly related.
+
+```{r dendrogram, echo=FALSE, fig.cap="what is a dendrogram", out.width = '60%'}
+
+knitr::include_graphics(c("../images/dendrogram.png"))
+```
+
+## distance measures 
+
+Before doing clustering, one has to define the distances between data points first. There are different
+distance measures as shown in Figure \@ref(fig:distmeasure). Credit https://towardsdatascience.com/9-distance-measures-in-data-science-918109d069fa.
+
+```{r distmeasure, echo=FALSE, fig.cap="distance measures", out.width = '80%'}
+
+knitr::include_graphics(c("../images/distance_measures.jpeg"))
+```
+
+```{r}
+?dist
+```
+
+
+## linkages 
+
+After you define the distance measure, one has to define how the clusters are merged.
+That's what linkage does. 
+
+Linkage: Measure of dissimilarity between two sets of objects that determine how two set of objects are merged.
+
+* Single linkage: Minimum dissimilarity between points in two sets used to determine
+which two sets should be merged.
+
+* Complete linkage: Maximum dissimilarity between points in two sets used to determine
+which two sets should be merged.
+
+* Average Linkage: Average dissimilarity between points in two sets used to determine
+which two sets should be merged.
+
+* Ward’s Linkage. The idea has much in common with analysis of variance (ANOVA). The linkage function specifying the distance between two clusters is computed as the increase in the "error sum of squares" (ESS) after fusing two clusters into a single cluster. In other words, it minimizes the increase in the total within-cluster variance when merging two clusters. It is commonly used when the goal is to create balanced, compact clusters.
+
+
+```{r}
+?hclust
+```
+
+
+Read more on clustering: https://www.nature.com/articles/nmeth.4299
+
+
+Let's use the NCI data microarray data
+
+```{r}
+library(ISLR)
+ncidat<- t(NCI60$data)
+colnames(ncidat)<- NCI60$labs
+
+dim(ncidat)
+
+ncidat[1:10, 1:5]
+
+unique(colnames(ncidat))
+
+X<- t(scale(t(ncidat),center=TRUE,scale=FALSE))
+```
+
+Let's use complete linkage:
+
+* Often gives comparable cluster sizes.
+* Less sensitive to outliers.
+* Works better with spherical distributions.
+
+```{r}
+#default euclidean distance
+Dmat<- dist(t(X))
+com.hclust<- hclust(Dmat,method="complete")
+plot(com.hclust,cex=.7,main="Complete Linkage")
+```
+
+Let's make the dendrogram look a little better by coloring the labels.
+
+```{r}
+library(dplyr)
+# https://cran.r-project.org/web/packages/dendextend/vignettes/dendextend.html
+# better dendogram
+library(dendextend)
+
+#https://cran.r-project.org/web/packages/Polychrome/index.html
+# better color
+library(Polychrome)
+
+set.seed(12042022)
+mypal <- kelly.colors(15)
+swatch(mypal)
+
+# remove the white color
+mypal<- mypal[-1]
+
+dend<- com.hclust %>%
+  as.dendrogram()
+
+dend_labels<- dend %>% labels()
+
+dend %>% 
+  color_labels(col = mypal[as.numeric(as.factor(dend_labels))]) %>%
+  set("labels_cex", 0.7) %>%
+  plot()
+```
+
+Make a little function to plot dendrogram with branch label colored
+
+```{r}
+plot_dend<- function(dend,...){
+  dend_labels<- dend %>% labels()
+  
+  dend %>% 
+  color_labels(col = mypal[as.numeric(as.factor(dend_labels))]) %>%
+  set("labels_cex", 0.7) %>%
+  plot(...)
+}
+
+```
+
+**Tip**: what is that `...` in the function? 
+
+>Adding `...` to a function is a powerful technique because it allows you to accept any number of additional arguments. Unfortunately it comes with a big downside: any misspelled or extraneous arguments will be silently ignored. This package [ellipsis](https://ellipsis.r-lib.org/) provides tools for making ... safer
+
+
+**single linkage**:
+
+* Can handle diverse shapes.
+* Very sensitive to outliers or noise.
+* Often results in unbalanced clusters.
+* Extended, trailing clusters in which observations fused one at a time -chaining.
+
+```{r}
+sing.hclust<- hclust(Dmat,method="single")
+plot_dend(as.dendrogram(sing.hclust), main = "single linkage")
+
+```
+
+
+**Average linkage**:
+
+* A compromise between single and complete linkage.
+* Less sensitive to outliers.
+* Works better with spherical distributions.
+
+```{r}
+ave.hclust<- hclust(Dmat,method="average")
+plot_dend(as.dendrogram(ave.hclust), main = "average linkage")
+```
+
+
+**Ward’s linkage**
+
+similar to Average linkage. Join objects that minimize Euclidean distance / average Euclidean distance.
+
+```{r}
+ward.hclust<-  hclust(Dmat,method="ward.D")
+plot_dend(as.dendrogram(ward.hclust), main = " Ward linkage")
+
+# cut the tree with a height of 120
+abline(h=120)
+rect.hclust(ward.hclust,h=120)
+
+cl<- cutree(ward.hclust, h= 120)
+table(type=colnames(X), clusters=cl)
+```
+
+**Complete linkage with different distances**
+
+```{r}
+Dmat<- dist(t(ncidat),method="manhattan") #L1 distance
+com.hclust<- hclust(Dmat,method="complete")
+plot_dend(as.dendrogram(com.hclust), main = " manhattan distance with Complete linage")
+```
+
+We can try all different combinations of distance matrix and different linkages. One can also use `1- cor(X)` as a distance measure! It is commonly used in the clustering of gene expression. Also, use either average linkage or Ward’s linkage.
+
+**Ward’s linkage for 1- cor(X) distance**
+
+`cor` calculate correlation between columns of a matrix. Do not need to transpose the matrix for calculating the distances between samples(columns).
+
+```{r}
+Dmat<- as.dist(1-cor(ncidat))
+ward.hclust<- hclust(Dmat,method="ward.D")
+plot_dend(as.dendrogram(ward.hclust), main = "ward linkage-1-cor(X) distance")
+```
+
+
+## sort dendrogram 
+
+The two branches from the same node can be flipped in the dendrogram and it does not 
+affect the meaning of the cluster structure in the data. However, one can sort the dendrogram
+so it can be more visually.
+
+Take a look at [dendsort](https://github.com/evanbiederstedt/dendsort)!
+
+>The subtrees in the resulting dendrogram are sorted based on the average distance of subtrees at every merging point. The tighter cluster, in other words the cluster with smaller average distance, is placed on the left side of branch. When a leaf merge with a cluster, the leaf is placed on the right side.
+
+
+
+```{r}
+library(dendsort)
+
+plot_dend(as.dendrogram(ward.hclust), main = "ward linkage-1-cor(X) distance")
+
+plot_dend(as.dendrogram(ward.hclust) %>%
+            dendsort(), 
+          main = "ward linkage-1-cor(X) distance sorted dendogram")
+```
+
