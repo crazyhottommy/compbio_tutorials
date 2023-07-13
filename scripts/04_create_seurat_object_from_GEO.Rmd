@@ -1,0 +1,120 @@
+---
+title: "How to a seurat object from GEO dataset"
+author: "Ming Tang"
+date: "07/12/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+### Download the data 
+
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE116256
+
+```{bash}
+
+cd /Users/tommytang/github_repos/compbio_tutorials/data/GSE116256
+wget https://ftp.ncbi.nlm.nih.gov/geo/series/GSE116nnn/GSE116256/suppl/GSE116256_RAW.tar
+tar xvf GSE116256_RAW.tar
+rm  GSE116256_RAW.tar
+```
+
+```{r}
+library(here)
+library(stringr)
+library(dplyr)
+library(ggplot2)
+library(Seurat)
+library(purrr)
+library(readr)
+library(harmony)
+library(scCustomize)
+library(SeuratDisk)
+```
+
+read in the count matrix 
+
+```{r}
+read_counts<- function(file){
+  x<- read_tsv(file)
+  x<- as.data.frame(x)
+  genes<- x$Gene
+  x<- x[, -1]
+  rownames(x)<- genes
+  return(as.matrix(x))
+}
+
+
+counts_files<- list.files(here("data/GSE116256"), full.names = TRUE, pattern = "*dem.txt.gz")
+
+samples<- map_chr(counts_files, basename) 
+
+samples<- str_replace(samples, "(GSM[0-9]+_.+).dem.txt.gz", "\\1")
+
+names(counts_files)<- samples
+
+counts<- purrr::map(counts_files[1:4], read_counts)
+
+```
+
+
+```{r}
+read_meta<- function(file){
+  y<- read_tsv(file)
+  y<- as.data.frame(y)
+  cells<- y$Cell
+  y<- y[,-1]
+  rownames(y)<- cells
+  return(y)
+}
+
+
+meta_files<- list.files(here("data/GSE116256"), full.names = TRUE, pattern = "*anno.txt.gz")
+meta_names<- map_chr(meta_files, basename)
+meta_names<- str_replace(meta_names, "(GSM[0-9]+_.+).anno.txt.gz", "\\1")
+names(meta_files)<- meta_names
+
+meta<- purrr::map(meta_files[1:4], read_meta)
+```
+
+### create a seurat object
+
+```{r}
+library(Matrix) #for sparse matrix
+objs<- purrr::map2(counts, meta,  
+                   ~CreateSeuratObject(counts = as(.x, "sparseMatrix"), 
+                                       meta.data = .y))
+
+
+# merge to a single object 
+merged_seurat<- purrr::reduce(objs, function(x,y) {merge(x,y)})
+
+## free memory
+rm(counts)
+rm(objs)
+rm(meta)
+gc()
+```
+
+### preprocess the data 
+
+```{r}
+merged_seurat<- merged_seurat %>%
+  NormalizeData(normalization.method = "LogNormalize", scale.factor = 10000) %>%
+  FindVariableFeatures( selection.method = "vst", nfeatures = 2000) %>%
+  ScaleData() %>%
+  RunPCA() %>%
+  RunHarmony(group.by.vars = "orig.ident", dims.use = 1:30) %>%
+  RunUMAP(reduction = "harmony", dims = 1:30) %>%
+  FindNeighbors(reduction = "harmony", dims = 1:30) %>% 
+  FindClusters(resolution = 0.6)
+```
+
+
+### visualization
+
+```{r}
+DimPlot_scCustom(seurat_object = merged_seurat)
+
+```
