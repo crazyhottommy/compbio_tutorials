@@ -1,0 +1,45 @@
+---
+title: "convert gene ids"
+author: "Ming Tang"
+date: '2023-07-13'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+### GUI tools
+
+DAVID pathway https://david.ncifcrf.gov/conversion.jsp
+
+BioDBnet https://biodbnet.abcc.ncifcrf.gov/db/db2db.php
+
+
+### Convert gene id using Bioconductor package 
+```{r}
+BiocManager::install("org.Hs.eg.db")
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+
+genes<- c("VEGFA", "CTCF", "HIF1A")
+
+AnnotationDbi::select(org.Hs.eg.db, keys = genes,
+  columns = c('ENTREZID'), keytype = 'SYMBOL')
+
+columns(org.Hs.eg.db)
+clusterProfiler::bitr(genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+
+```
+
+
+### Mygene 
+
+https://mygene.info/
+convert more IDs
+
+```{r}
+BiocManager::install("mygene")
+library(mygene)
+
+queryMany(genes, scopes="symbol", fields=c("uniprot", "ensembl.gene", "reporter"), species="human")
+```
+
