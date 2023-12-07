@@ -1,0 +1,41 @@
+---
+title: "15_how_to_get_metadata_from_GEO"
+author: "Ming Tang"
+date: '2023-12-07'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+# BiocManager::install("GEOquery")
+library(GEOquery)
+library(tidyverse)
+
+meta<- getGEO(GEO="GSE185507",GSEMatrix=FALSE)
+```
+
+```{r}
+meta@gsms$GSM5616943@header$characteristics_ch1
+```
+
+```{r}
+purrr::map(meta@gsms, ~.x@header$characteristics_ch1) %>%
+  stack() %>%
+  tidyr::separate(values, into = c("feature", "value"), sep= ": ")%>%
+        pivot_wider(names_from= feature, values_from = value) %>%
+        janitor::clean_names() %>%
+  write_csv("~/Downloads/GSE185507_meta.csv")
+```
+
+## 5 tools to fetch GEO and other databases' metadata and data
+
+1. GEOfetch https://geofetch.databio.org/en/latest/
+
+2. bioconductor package GEOquery  https://bioconductor.org/packages/release/bioc/html/GEOquery.html
+
+3. [ffq](https://github.com/pachterlab/ffq) Fetch metadata information from databases. https://github.com/pachterlab/ffq
+
+4. [pysradb](https://github.com/saketkc/pysradb): a python package to query next-generation sequencing metadata and data from NCBI sequence read archive.
+
+5. [GEOparse](https://github.com/guma44/GEOparse)
