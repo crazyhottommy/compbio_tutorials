@@ -1,0 +1,60 @@
+---
+title: "mouse ortholog"
+author: "Ming Tang"
+date: '2024-01-11'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Get mouse orthologs for human
+
+https://bioconductor.org/packages/release/bioc/html/biomaRt.html
+
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("biomaRt")
+
+
+library(dplyr)
+library(biomaRt)
+human<- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+attributes<-  c("ensembl_gene_id", "external_gene_name",
+                "mmusculus_homolog_ensembl_gene", 
+                "mmusculus_homolog_associated_gene_name",
+                "mmusculus_homolog_orthology_type",
+                "mmusculus_homolog_perc_id_r1")
+
+listAttributes(human) %>%
+  head()
+
+
+listAttributes(human) %>% 
+  filter(stringr::str_detect(name, "mmusculus_homolog_"))
+
+listAttributes(human)  %>% head()
+
+orth.mouse<-  getBM(attributes, filters="with_mmusculus_homolog",
+                    values=TRUE, mart = human, uniqueRows=TRUE)
+
+listFilters(human)%>% head()
+listFilters(human)%>% 
+  filter(stringr::str_detect(name, "mmusculus"))
+
+head(orth.mouse)
+```
+
+
+```{r}
+orth.mouse %>%
+  dplyr::filter(external_gene_name == "VEGFA")
+
+orth.mouse %>%
+  dplyr::filter(external_gene_name == "CTCF")
+
+orth.mouse %>%
+  dplyr::filter(external_gene_name == "LILRB1")
+```

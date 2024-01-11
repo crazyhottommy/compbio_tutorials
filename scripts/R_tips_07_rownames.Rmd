@@ -1,0 +1,48 @@
+---
+title: "rownames for dataframe"
+author: "Ming Tang"
+date: '2024-01-04'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+expression<- data.frame(sample1 = c(1,2,3,4,5),
+                        sample2 = c(2,3,5,6,7),
+                        sample3 = c(10,12,8,9,14))
+
+expression
+```
+
+add rownames
+
+```{r}
+rownames(expression)<- paste0("gene", 1:5)
+
+expression
+```
+
+use rownames to subset
+
+```{r}
+rownames(expression)
+
+expression[c("gene1", "gene2"), ]
+```
+
+duplicated genes
+
+```{r}
+genes<- c("gene1", "gene2", "gene2", "gene3", "gene3")
+
+genes
+
+rownames(expression)<- genes
+
+make.names(genes, unique = TRUE)
+
+rownames(expression)<- make.names(genes, unique = TRUE)
+
+expression
+```
