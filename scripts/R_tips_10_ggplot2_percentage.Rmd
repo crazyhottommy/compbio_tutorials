@@ -1,0 +1,123 @@
+---
+title: "R_tips_percentage_ggplot"
+author: "Ming Tang"
+date: '2024-01-15'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+How to label the y-axis with % for percentages?
+
+```{r}
+library(Seurat)
+library(SeuratData)
+library(dplyr)
+library(ggplot2)
+
+data("pbmc3k")
+
+pbmc3k
+pbmc3k<- UpdateSeuratObject(pbmc3k)
+
+pbmc3k
+```
+
+
+```{r}
+table(pbmc3k$seurat_annotations)
+```
+
+
+```{r}
+pbmc3k@meta.data %>%
+  head()
+```
+
+Let's calculate the percentage of each cell types
+
+```{r}
+cell_number<- pbmc3k@meta.data %>%
+  count(seurat_annotations)
+
+cell_number
+```
+
+calculate the percentage 
+```{r}
+cell_number<- cell_number %>%
+  mutate(percent = n/ sum(n) * 100) %>%
+  rename(cell_type = seurat_annotations)
+
+cell_number
+```
+
+plotting 
+
+```{r}
+ggplot(cell_number, aes(x= cell_type, y = percent)) +
+  geom_bar(stat = "identity") +
+  xlab("")
+```
+
+add percentage
+
+```{r}
+ggplot(cell_number, aes(x= cell_type, y = percent)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("")
+```
+
+fix it
+
+```{r}
+ggplot(cell_number, aes(x= cell_type, y = percent)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  xlab("")
+
+
+```
+
+show more digits 
+
+```{r}
+ggplot(cell_number, aes(x= cell_type, y = percent)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1, accuracy = 0.01)) +
+  xlab("")
+```
+
+rotate x-axis label
+
+```{r}
+ggplot(cell_number, aes(x= cell_type, y = percent)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1, accuracy = 0.1)) +
+  xlab("") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+re-order the bar by percentages
+
+```{r}
+ggplot(cell_number, 
+       aes(x= cell_type %>% forcats::fct_reorder(percent), y = percent)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1, accuracy = 0.1)) +
+  xlab("") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+descending 
+
+```{r}
+ggplot(cell_number, 
+       aes(x= cell_type %>% forcats::fct_reorder(percent,.desc=TRUE), y = percent)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1, accuracy = 0.1)) +
+  xlab("") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
