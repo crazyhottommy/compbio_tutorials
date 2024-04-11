@@ -15,7 +15,6 @@ Making heatmap is an essential skill for any computational biologist.
 
 ```{r}
 library(ComplexHeatmap)
-
 ```
 
 ### make dummy data 
@@ -82,7 +81,7 @@ Let's scale the data/gene expression level across columns (time points) first
 ```{r}
 scaled_mat<- t(scale(t(mat)))
 
-scaled_mat
+
 ?Heatmap
 Heatmap(scaled_mat, cluster_columns = FALSE)
 ```

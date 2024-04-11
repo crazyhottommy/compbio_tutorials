@@ -46,3 +46,78 @@ bind_cols(counts) %>%
 
 ```
 
+### dummy files
+
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(readr)
+files<- list.files("~/playground", pattern = "sample[0-9].tsv", full.name=TRUE)
+
+files
+
+names(files)<- stringr::str_split(files, pattern = "/", simplify = TRUE)[, 5] %>%
+  stringr::str_replace(".tsv", "")
+
+files
+```
+
+use a for loop
+
+```{r}
+results<- data.frame()
+
+for (file in files) {
+  x<- read_tsv(file)
+  sample_name<- stringr::str_replace(file, "/Users/tommytang/playground/", "") %>%
+    stringr::str_replace(".tsv", "")
+  x$sample<- sample_name
+  results<- rbind(results, x)
+}
+
+results
+
+results %>%
+  tidyr::pivot_wider(names_from = sample, values_from = count)
+```
+
+
+use lapply
+
+```{r}
+counts<- lapply(files, read_tsv)
+
+do.call(rbind, counts)
+
+purrr::reduce(counts, rbind,)
+
+## add a sample name column
+read_count<- function(file){
+  x<- read_tsv(file)
+  sample_name<- stringr::str_replace(file, "/Users/tommytang/playground/", "") %>%
+    stringr::str_replace(".tsv", "")
+  x$sample<- sample_name
+  return(x)
+}
+
+counts<- lapply(files, read_count)
+
+do.call(rbind, counts)
+
+purrr::reduce(counts, rbind)
+
+```
+
+use purrr::map and bind_rows 
+```{r}
+counts<- purrr::map(files, read_tsv)
+
+dplyr::bind_rows(counts, .id = "sample") %>%
+  tidyr::pivot_wider(names_from = sample, values_from = count)
+```
+
+```{r}
+counts<- purrr::map_df(files, readr::read_tsv, .id = "sample")
+```
+
