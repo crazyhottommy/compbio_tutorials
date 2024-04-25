@@ -53,6 +53,9 @@ bind_cols(counts) %>%
 library(tidyr)
 library(dplyr)
 library(readr)
+
+list.files("~/playground", pattern = "sample[0-9].tsv")
+
 files<- list.files("~/playground", pattern = "sample[0-9].tsv", full.name=TRUE)
 
 files
@@ -61,11 +64,18 @@ names(files)<- stringr::str_split(files, pattern = "/", simplify = TRUE)[, 5] %>
   stringr::str_replace(".tsv", "")
 
 files
+
+dat1<- read_tsv(files[1])
+dat2<- read_tsv(files[2])
+dat3<- read_tsv(files[3])
+dat4<-read_tsv(files[4])
+
 ```
 
 use a for loop
 
 ```{r}
+
 results<- data.frame()
 
 for (file in files) {
@@ -75,6 +85,8 @@ for (file in files) {
   x$sample<- sample_name
   results<- rbind(results, x)
 }
+
+
 
 results
 
@@ -90,7 +102,7 @@ counts<- lapply(files, read_tsv)
 
 do.call(rbind, counts)
 
-purrr::reduce(counts, rbind,)
+purrr::reduce(counts, rbind)
 
 ## add a sample name column
 read_count<- function(file){
@@ -101,16 +113,21 @@ read_count<- function(file){
   return(x)
 }
 
+# lappy from base R
 counts<- lapply(files, read_count)
 
+#base R
 do.call(rbind, counts)
 
-purrr::reduce(counts, rbind)
+# purrr
+purrr::reduce(counts, rbind) %>%
+  tidyr::pivot_wider(names_from = sample, values_from = count)
 
 ```
 
 use purrr::map and bind_rows 
 ```{r}
+# map function from purrr
 counts<- purrr::map(files, read_tsv)
 
 dplyr::bind_rows(counts, .id = "sample") %>%
@@ -119,5 +136,7 @@ dplyr::bind_rows(counts, .id = "sample") %>%
 
 ```{r}
 counts<- purrr::map_df(files, readr::read_tsv, .id = "sample")
+counts %>%
+  tidyr::pivot_wider(names_from = sample, values_from = count)
 ```
 

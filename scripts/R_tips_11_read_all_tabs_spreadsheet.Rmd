@@ -1,0 +1,62 @@
+---
+title: "read all tabs from spreadsheet"
+author: "Ming Tang"
+date: '2024-04-25'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(readxl)
+library(here)
+library(tidyverse)
+
+# read in one sheet
+read_excel(here("data/gene_counts.xlsx"), sheet = "sample1")
+
+```
+
+
+```{r}
+
+read_excel(here("data/gene_counts.xlsx"), sheet = "sample1")
+read_excel(here("data/gene_counts.xlsx"), sheet = "sample2")
+read_excel(here("data/gene_counts.xlsx"), sheet = "sample3")
+read_excel(here("data/gene_counts.xlsx"), sheet = "sample4")
+
+path<- here("data/gene_counts.xlsx")
+
+path %>% 
+  excel_sheets() %>% 
+  set_names() %>% 
+  map(read_excel, path = path)
+
+
+path %>% 
+  excel_sheets() %>% 
+  map(read_excel, path = path)
+```
+
+
+merge into a single dataframe
+```{r}
+path %>% 
+  excel_sheets() %>% 
+  set_names() %>% 
+  map(read_excel, path = path) %>%
+  bind_rows(.id="sample")
+```
+
+
+make it to a wide format count table
+
+```{r}
+path %>% 
+  excel_sheets() %>% 
+  set_names() %>% 
+  map(read_excel, path = path) %>%
+  bind_rows(.id="sample") %>%
+  tidyr::pivot_wider(names_from = "sample", values_from = "count")
+```
+
