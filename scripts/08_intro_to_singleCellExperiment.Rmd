@@ -1,0 +1,192 @@
+---
+title: "singleCellExperiment"
+author: "Ming Tang"
+date: '2024-06-01'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+### introduction to singleCellExperiment 
+
+references:
+
+https://www.bioconductor.org/packages/release/bioc/vignettes/SingleCellExperiment/inst/doc/intro.html
+
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("scater")
+
+BiocManager::install("SingleCellExperiment")
+
+library(SingleCellExperiment)
+library(scater)
+```
+
+https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126030/suppl/
+
+```{bash eval=FALSE}
+wget https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126030/suppl/GSE126030_RAW.tar
+
+tar -xvf GSE181294_RAW.tar
+```
+
+
+```{r}
+library(tidyverse)
+library(here)
+counts_df<- read_tsv(here("data/GSM3589407_PP002swap.filtered.matrix.txt.gz"))
+
+colnames(counts_df) %>% tail()
+
+counts_df$...2466 %>% head()
+
+table(counts_df$...2466, useNA="ifany")
+```
+
+remove the last column
+```{r}
+length(colnames(counts_df))
+counts_df<- counts_df[, -2466]
+
+counts_df[1:5, 1:5]
+
+counts_mat<- counts_df[, -c(1,2)] %>%
+  as.matrix()
+
+rownames(counts_mat)<- counts_df$Gene
+
+counts_mat[1:5, 1:5]
+```
+
+### Create SingleCellExperiment Object 
+
+```{r}
+sce <- SingleCellExperiment(assays = list(counts = counts_mat))
+
+sce
+```
+To access the count data we just supplied, we can do any one of the following:
+
+```{r}
+assay(sce, "counts")
+
+counts(sce)
+```
+
+One can access the slots with the `@` operator. This is considered bad practice as the class developers are free to alter the internal structure of the class, at which point any code using `@` may no longer work. Rather, it is best to use the provided **getter** functions like `assay()` and `counts()`
+
+```{r}
+sce@assays
+
+sce@assays@data
+
+sce@assays@data$counts[1:5, 1:5]
+```
+
+add more assays
+
+```{r}
+sce <- scuttle::logNormCounts(sce)
+sce
+```
+
+```{r}
+sce@assays@data$logcounts[1:5, 1:5]
+
+dim(logcounts(sce))
+```
+
+You may add the assay manually
+
+```{r}
+counts_1 <- counts(sce) + 1
+
+assay(sce, "counts_1") <- counts_1 # assign a new entry to assays slot
+
+assays(sce)
+
+# not recommended way to add new assay data
+sce@assays@data$counts_2<- counts(sce) + 2
+assays(sce)
+```
+
+```{r}
+assayNames(sce)
+```
+
+### add metadata
+
+```{r}
+sce <- scuttle::addPerCellQC(sce)
+
+
+colData(sce)
+
+coldata<- colData(sce)
+
+identical(rownames(coldata), colnames(counts_mat))
+
+sce <- scuttle::addPerFeatureQC(sce)
+rowData(sce)
+```
+
+```{r}
+rowRanges(sce)
+```
+
+### other metadata
+
+the metadata slot, a named list of arbitrary objects. For example, say we have some favorite genes (e.g., highly variable genes) that we want to store inside of sce for use in our analysis at a later point. 
+
+```{r}
+my_genes <- c("gene_1", "gene_5")
+metadata(sce) <- list(favorite_genes = my_genes)
+metadata(sce)
+```
+
+### dimension reduction
+
+```{r}
+sce <- scater::logNormCounts(sce)
+
+sce <- scater::runPCA(sce)
+
+sce
+
+
+reducedDim(sce, "PCA")[1:5, 1:5]
+
+dim(reducedDim(sce, "PCA"))
+
+sce <- scater::runTSNE(sce, perplexity = 0.1)
+
+reducedDim(sce, "TSNE")[1:5, 1:2]
+
+reducedDims(sce)
+
+reducedDimNames(sce)
+```
+
+### add 
+
+```{r}
+u <- uwot::umap(t(logcounts(sce)), n_neighbors = 2)
+reducedDim(sce, "UMAP_uwot") <- u
+
+reducedDims(sce) # Now stored in the object.
+```
+
+
+```{r}
+colLabels(sce) <- scran::clusterCells(sce, use.dimred="PCA")
+table(colLabels(sce))
+```
+
+```{r}
+scater::plotReducedDim(sce, dimred="TSNE")
+```
+

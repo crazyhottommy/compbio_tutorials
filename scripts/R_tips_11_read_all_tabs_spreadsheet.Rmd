@@ -57,6 +57,6 @@ path %>%
   set_names() %>% 
   map(read_excel, path = path) %>%
   bind_rows(.id="sample") %>%
-  tidyr::pivot_wider(names_from = "sample", values_from = "count")
+  tidyr::pivot_wider(names_from = "sample", values_from = "count") 
 ```
 
