@@ -31,7 +31,7 @@ https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126030/suppl/
 ```{bash eval=FALSE}
 wget https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126030/suppl/GSE126030_RAW.tar
 
-tar -xvf GSE181294_RAW.tar
+tar -xvf GSE126030_RAW.tar
 ```
 
 
@@ -62,7 +62,7 @@ rownames(counts_mat)<- counts_df$Gene
 counts_mat[1:5, 1:5]
 ```
 
-### Create SingleCellExperiment Object 
+### Create a SingleCellExperiment Object 
 
 ```{r}
 sce <- SingleCellExperiment(assays = list(counts = counts_mat))
@@ -74,7 +74,9 @@ To access the count data we just supplied, we can do any one of the following:
 ```{r}
 assay(sce, "counts")
 
-counts(sce)
+assay(sce, "counts")[1:5, 1:5]
+
+counts(sce)[1:5, 1:5]
 ```
 
 One can access the slots with the `@` operator. This is considered bad practice as the class developers are free to alter the internal structure of the class, at which point any code using `@` may no longer work. Rather, it is best to use the provided **getter** functions like `assay()` and `counts()`
@@ -96,6 +98,8 @@ sce
 
 ```{r}
 sce@assays@data$logcounts[1:5, 1:5]
+
+assay(sce, "logcounts")[1:5, 1:5]
 
 dim(logcounts(sce))
 ```
@@ -167,6 +171,7 @@ sce <- scater::runTSNE(sce, perplexity = 0.1)
 reducedDim(sce, "TSNE")[1:5, 1:2]
 
 reducedDims(sce)
+
 
 reducedDimNames(sce)
 ```

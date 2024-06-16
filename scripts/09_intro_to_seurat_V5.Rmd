@@ -1,0 +1,106 @@
+---
+title: "09_intro_to_seurat_v5"
+author: "Ming Tang"
+date: '2024-06-06'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+options(Seurat.object.assay.version = "v5")
+library(Seurat)
+library(dplyr)
+
+# packageVersion("Seurat")
+
+```
+
+Load the example data
+```{r}
+library(SeuratData)
+data("pbmc3k")
+pbmc3k
+
+```
+
+
+```{r}
+pbmc3k<- UpdateSeuratObject(pbmc3k)
+
+pbmc3k<- pbmc3k %>% 
+  NormalizeData(normalization.method = "LogNormalize", scale.factor = 10000) %>%
+  FindVariableFeatures(selection.method = "vst", nfeatures = 2000) %>%
+  ScaleData() %>%
+  RunPCA(verbose = FALSE) %>%
+  RunUMAP(dims = 1:10, verbose = FALSE)
+```
+
+### Seurat V5
+
+Seurat v5 assays store data in layers. These layers can store raw, un-normalized counts (layer='counts'), normalized data (layer='data'), or z-scored/variance-stabilized data (layer='scale.data').
+
+```{r}
+Layers(pbmc3k)
+
+LayerData(pbmc3k, "counts")[1:5, 1:5]
+LayerData(pbmc3k, "data")[1:5, 1:5]
+
+
+##use getter function
+GetAssayData(object = pbmc3k, slot = 'data')[1:5, 1:5]
+
+```
+
+
+```{r}
+pbmc3k
+
+pbmc3k@meta.data %>% head()
+pbmc3k@assays
+pbmc3k@assays$RNA
+pbmc3k[["RNA"]]
+
+pbmc3k[["RNA"]]@counts[1:5, 1:5]
+pbmc3k[["RNA"]]@data[1:5, 1:5]
+
+
+```
+
+dimension reduction
+
+```{r}
+pbmc3k@reductions
+
+pbmc3k@reductions$pca
+
+pbmc3k@reductions$pca@cell.embeddings %>% head()
+
+pbmc3k[["pca"]]
+pbmc3k[["pca"]]@cell.embeddings %>% head()
+
+## getter function
+
+Embeddings(pbmc3k, "pca") %>% head()
+Embeddings(pbmc3k, "umap") %>% head()
+
+Loadings(pbmc3k, "pca") %>% head()
+
+```
+
+### convert between V4 and V5
+
+```{r}
+obj<- pbmc3k
+
+#convert v5 assay to v4 assay within same object
+obj[["RNA"]]<- as(obj[["RNA"]], Class= "Assay")
+
+class(obj[["RNA"]])
+# convert it back
+obj[["RNA"]]<- as(obj[["RNA"]], Class= "Assay5")
+
+class(obj[["RNA"]])
+
+```
+
