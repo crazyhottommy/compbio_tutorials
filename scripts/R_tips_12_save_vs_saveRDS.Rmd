@@ -1,0 +1,48 @@
+---
+title: "save vs saveRDS"
+output: html_document
+date: "2024-08-29"
+editor_options: 
+  chunk_output_type: console
+---
+
+### save() vs saveRDS()
+
+```{r}
+# Load necessary libraries
+library(tidymodels)
+library(broom)
+library(ggplot2)
+library(dplyr)
+
+head(mtcars)
+
+ggplot(mtcars, aes(x= mpg, y = wt)) +
+  geom_point()
+
+
+# Define the linear regression model specification
+lm_spec <- linear_reg() %>%
+  set_engine("lm")
+
+# Fit the model
+lm_fit <- lm_spec %>%
+  fit(mpg ~ wt, data = mtcars)
+
+# Extract the coefficient and p-value
+model_summary <- tidy(lm_fit)
+
+
+saveRDS(lm_fit, file = "data/lm_fit.rds")
+
+save(lm_fit, model_summary, file = "data/lm_fit.rda")
+```
+
+
+### read the data back
+
+```{r}
+my_saved_fit<- readRDS("data/lm_fit.rds")
+
+load("data/lm_fit.rda")
+```
