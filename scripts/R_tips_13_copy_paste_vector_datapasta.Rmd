@@ -1,0 +1,48 @@
+---
+title: "datapasta demo"
+output: html_document
+date: "2024-09-04"
+editor_options: 
+  chunk_output_type: console
+---
+
+introduction to datapasta https://github.com/MilesMcBain/datapasta
+
+```{r}
+install.packages(
+   "datapasta", 
+   repos = c(mm = "https://milesmcbain.r-universe.dev", getOption("repos")))
+```
+
+### copy and paste vector
+
+```{r}
+my_genes<- c("VEGFA", "CTCF", "TP53", "FOXP3", "CD3D", "CD8A", "CD4")
+
+c("VEGFA",
+  "CTCF",
+  "TP53",
+  "FOXP3",
+  "CD3D",
+  "CD8A",
+  "CD4")
+
+
+```
+
+### copy and paste tibble
+
+```{r}
+my_dataframe<- tibble::tribble(
+    ~gene, ~expression,
+  "VEGFA",          3L,
+   "CTCF",          4L,
+   "TP53",         10L,
+  "FOXP3",          1L,
+   "CD3D",         14L,
+   "CD8A",         15L,
+    "CD4",          0L
+  )
+
+
+```

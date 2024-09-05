@@ -7,6 +7,14 @@ editor_options:
   chunk_output_type: console
 ---
 
+### Overview of Layers in Seurat V5
+
+In Seurat V5, a Layer is a new abstraction that can encapsulate different modalities or features of the single-cell data. This allows users to seamlessly integrate and analyze data from various sources while retaining the ability to use familiar Seurat functions.
+
+Key Concepts of Layers
+Layered Data: Each layer can represent a modality (like RNA, protein, etc.) or a different version of data (like log-normalized versus raw counts).
+
+
 ```{r}
 options(Seurat.object.assay.version = "v5")
 library(Seurat)
@@ -18,16 +26,19 @@ library(dplyr)
 
 Load the example data
 ```{r}
+# devtools::install_github('satijalab/seurat-data')
 library(SeuratData)
+InstallData("pbmc3k")
 data("pbmc3k")
 pbmc3k
 
+pbmc3k<- UpdateSeuratObject(pbmc3k)
+
+pbmc3k
 ```
 
 
 ```{r}
-pbmc3k<- UpdateSeuratObject(pbmc3k)
-
 pbmc3k<- pbmc3k %>% 
   NormalizeData(normalization.method = "LogNormalize", scale.factor = 10000) %>%
   FindVariableFeatures(selection.method = "vst", nfeatures = 2000) %>%
@@ -41,9 +52,18 @@ pbmc3k<- pbmc3k %>%
 Seurat v5 assays store data in layers. These layers can store raw, un-normalized counts (layer='counts'), normalized data (layer='data'), or z-scored/variance-stabilized data (layer='scale.data').
 
 ```{r}
+pbmc3k@meta.data %>% head()
+pbmc3k@assays
+pbmc3k@assays$RNA
+pbmc3k[["RNA"]]
+
 Layers(pbmc3k)
 
 LayerData(pbmc3k, "counts")[1:5, 1:5]
+pbmc3k@assays$RNA$counts[1:5, 1:5]
+pbmc3k[["RNA"]]@counts[1:5, 1:5]
+
+
 LayerData(pbmc3k, "data")[1:5, 1:5]
 
 
@@ -53,19 +73,6 @@ GetAssayData(object = pbmc3k, slot = 'data')[1:5, 1:5]
 ```
 
 
-```{r}
-pbmc3k
-
-pbmc3k@meta.data %>% head()
-pbmc3k@assays
-pbmc3k@assays$RNA
-pbmc3k[["RNA"]]
-
-pbmc3k[["RNA"]]@counts[1:5, 1:5]
-pbmc3k[["RNA"]]@data[1:5, 1:5]
-
-
-```
 
 dimension reduction
 
