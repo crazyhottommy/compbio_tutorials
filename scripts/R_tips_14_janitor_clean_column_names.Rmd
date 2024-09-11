@@ -1,0 +1,75 @@
+---
+title: "janitor clean column name"
+output: html_document
+date: "2024-09-04"
+editor_options: 
+  chunk_output_type: console
+---
+
+### Janitor R package 
+
+showcase how to use https://github.com/sfirke/janitor
+
+```{r}
+install.packages("janitor")
+
+library(readxl)
+library(janitor)
+library(dplyr)
+library(here)
+```
+
+```{r}
+
+roster_raw <- read_excel(here("data/dirty_data.xlsx")) # I included the copy in the repo
+
+head(roster_raw)
+```
+
+```{r}
+roster_raw <- roster_raw %>%
+  row_to_names(row_number = 1) %>%
+  clean_names()
+
+# or 
+read_excel(here("data/dirty_data.xlsx"), skip=1)
+
+head(roster_raw)
+
+View(roster_raw)
+```
+
+clean it further 
+```{r}
+roster <- roster_raw %>%
+  remove_empty(c("rows", "cols")) %>%
+  remove_constant(na.rm = TRUE, quiet = FALSE) %>% # remove the column of all "Yes" values
+  mutate(
+    hire_date = convert_to_date(
+      hire_date, # handle the mixed-format dates
+      character_fun = lubridate::mdy
+    ),
+    cert = dplyr::coalesce(certification, certification_2),
+    cert2 = dplyr::coalesce(certification_2, certification)
+  ) %>% View()
+
+  select(-certification, -certification_2)
+```
+
+### better table using  tabyl()
+
+```{r}
+table(roster$subject)
+
+roster %>%
+  tabyl(subject)
+
+roster %>%
+  tabyl(employee_status, full_time)
+
+roster %>%
+  tabyl(full_time, subject, employee_status, show_missing_levels = FALSE)
+
+roster %>%
+  tabyl(subject, employee_status, full_time, show_missing_levels = FALSE)
+```
