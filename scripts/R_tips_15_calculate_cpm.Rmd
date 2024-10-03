@@ -1,0 +1,48 @@
+---
+title: "calculate cpm"
+output: html_document
+date: "2024-10-03"
+editor_options: 
+  chunk_output_type: console
+---
+# how to calculate counts per million (CPM) from scratch for RNAseq or ChIP-seq count table 
+
+
+### use sweep 
+
+```{r}
+mat <- matrix(1:9, nrow=3, byrow=TRUE)  
+
+matrix(1:9, nrow=3)
+# Divide each column by its sum
+normalized_mat1 <- sweep(mat, 2, colSums(mat)/10^6, FUN="/")
+
+
+normalized_mat1
+
+```
+
+### use apply
+
+```{r}
+normalized_mat2<- apply(mat, 2, function(x) x/sum(x) * 10^6)
+normalized_mat2
+
+all.equal(normalized_mat1, normalized_mat2)
+```
+
+### use vectorization 
+
+```{r}
+mat/colSums(mat)
+
+normalized_mat3<- t(t(mat)/colSums(mat) * 10^6)
+normalized_mat3
+```
+
+### use a package
+```{r}
+library(edgeR)
+cpm(mat)
+```
+
