@@ -1,0 +1,134 @@
+---
+title: "change gene names"
+output: html_document
+date: "2024-10-10"
+editor_options: 
+  chunk_output_type: console
+---
+
+### The problem
+You have a count matrix with rownames are ENSEMBL ids, and you want 
+to change them to gene symbols.
+
+
+```{r}
+#BiocManager::install("recount3")
+library(recount3)
+library(purrr)
+library(dplyr)
+library(ggplot2)
+human_projects <- available_projects()
+
+tcga_info = subset(
+    human_projects,
+    file_source == "tcga" & project_type == "data_sources"
+)
+
+head(tcga_info)
+```
+
+
+```{r}
+tcga_info[1, ]
+
+## create the RangedSummarizedExperiment. the create_rse function works on 
+## one row a time 
+
+rse_acc<- create_rse(tcga_info[1,])
+
+rse_acc
+```
+
+
+```{r}
+rse_acc@assays@data$raw_counts[1:5, 1:5]
+
+rse_acc@rowRanges
+```
+
+### mapping gene symbol to ENSEMBL ID
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("AnnotationDbi", "org.Hs.eg.db"))
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+```
+
+
+```{r}
+
+mat<- rse_acc@assays@data$raw_counts
+
+ensembl_ids<- rownames(mat)
+
+
+# Map ENSEMBL IDs to HGNC symbols using org.Hs.eg.db
+# you get errors!
+gene_symbols <- AnnotationDbi::select(org.Hs.eg.db,
+                       keys = ensembl_ids,
+                       column = "SYMBOL",        # The output you want (gene symbol)
+                       keytype = "ENSEMBL",      # The input key type (ENSEMBL ID)
+                       multiVals = "first")      # How to handle multiple mappings
+
+head(ensembl_ids)
+
+# remove the version number
+ensembl_ids<- esembl_ids %>%
+  stringr::str_replace("\\.[0-9]+$", "")
+
+rownames(mat)<- ensembl_ids
+mat[1:5, 1:5]
+
+gene_symbols <- AnnotationDbi::select(org.Hs.eg.db,
+                       keys = ensembl_ids,
+                       column = "SYMBOL",        # The output you want (gene symbol)
+                       keytype = "ENSEMBL",      # The input key type (ENSEMBL ID)
+                       multiVals = "first")  
+
+head(gene_symbols)
+```
+
+
+```{r}
+gene_symbols %>%
+  janitor::get_dupes(SYMBOL) %>%
+  head()
+
+gene_symbols %>%
+  janitor::get_dupes(SYMBOL) %>%
+  filter(!is.na(SYMBOL))
+```
+
+### remove the NA and remove the duplicates
+
+```{r}
+gene_symbols_uniq<- gene_symbols %>%
+  filter(!is.na(SYMBOL)) %>%
+  distinct(SYMBOL, .keep_all = TRUE) %>%
+  distinct(ENSEMBL, .keep_all = TRUE)
+
+
+dim(gene_symbols_uniq)
+
+gene_symbols_uniq %>%
+  janitor::get_dupes(ENSEMBL)
+
+gene_symbols_uniq %>%
+  janitor::get_dupes(SYMBOL)
+```
+
+
+### subset the orignal matrix
+
+
+```{r}
+mat_subset<- mat[gene_symbols_uniq$ENSEMBL, ]
+
+all.equal(rownames(mat_subset), gene_symbols_uniq$ENSEMBL)
+
+rownames(mat_subset)<- gene_symbols_uniq$SYMBOL
+
+mat_subset[1:5, 1:5]
+```
