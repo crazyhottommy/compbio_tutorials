@@ -1,0 +1,92 @@
+---
+title: "lift over bedpe"
+output: html_document
+date: "2024-11-22"
+editor_options: 
+  chunk_output_type: console
+---
+```{r}
+library(rtracklayer)
+library(AnnotationHub) 
+ahub <- AnnotationHub()
+
+ahub.chain <- subset(ahub, rdataclass == "ChainFile" & species == "Homo sapiens")
+query(ahub.chain, c("hg19", "hg38"))
+
+chain <- ahub.chain[ahub.chain$title == "hg19ToHg38.over.chain.gz"]
+chain <- chain[[1]]
+
+?liftOver
+
+bedpe<- import(here("data/ENCODE_EP.bedpe"))
+
+bedpe@first
+
+bedpe@second
+
+first_liftover<- liftOver(bedpe@first, chain = chain)
+second_liftover<- liftOver(bedpe@second, chain = chain)
+```
+
+There are regions in hg19 mapped to multiple regions of hg38
+and there are hg19 regions do not map to hg38.
+
+```{r}
+indx<- elementNROWS(first_liftover) >1
+
+first_liftover[indx]
+
+table(elementNROWS(first_liftover) ==0)
+table(elementNROWS(second_liftover) ==0)
+
+
+length(first_liftover)
+length(second_liftover)
+
+invalid_idx_first<- which(elementNROWS(first_liftover) ==0)
+invalid_idx_second<- which(elementNROWS(second_liftover) ==0)
+
+valid_idx<- setdiff(1:length(first_liftover), c(invalid_idx_first, invalid_idx_second))
+
+#remove the invalid pairs
+first_liftover<- first_liftover[valid_idx]
+second_liftover<- second_liftover[valid_idx]
+
+
+## looping over the full GRangesList object is very slow
+## only pick the problematic ones
+
+indx_1<- which(elementNROWS(first_liftover) >1)
+indx_2<- which(elementNROWS(second_liftover) >1)
+
+select_valid_regions<- function(gr){
+  if (length(gr) > 1){
+    return(gr[which.max(width(gr))])
+  }
+}
+
+lapply(first_liftover[indx_1], select_valid_regions)
+lapply(second_liftover[indx_2], select_valid_regions)
+
+# check endoapply and mendoapply
+# unlist GRangeList object to GRanges object, but lapply will not keep the same GRangesList object
+# it will just return a list of GRanges. use endoapply
+first_liftover_valid<- c(unlist(endoapply(first_liftover[indx_1],
+                                          select_valid_regions)),
+                         unlist(first_liftover[-indx_1]))
+
+
+
+second_liftover_valid<- c(unlist(endoapply(second_liftover[indx_2],
+                                           select_valid_regions)),
+                          unlist(second_liftover[-indx_2]))
+
+first_liftover_valid
+
+```
+
+write it to file
+```{r}
+hg38_bedpe<- Pairs(first_liftover_valid, second_liftover_valid)
+rtracklayer::export(hg38_bedpe, here("data/ENCODE_EP_hg38.bedpe"), format="bedpe")
+```
