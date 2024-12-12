@@ -5,6 +5,12 @@ date: "2024-11-22"
 editor_options: 
   chunk_output_type: console
 ---
+
+### liftover hg19 bedpe to hg38
+
+download the bedpe file here https://gitlab.com/tangming2005/Enhancer_promoter_interaction_data/-/blob/master/bedpe/ENCODE_EP.bedpe
+
+
 ```{r}
 library(rtracklayer)
 library(AnnotationHub) 
@@ -18,7 +24,7 @@ chain <- chain[[1]]
 
 ?liftOver
 
-bedpe<- import(here("data/ENCODE_EP.bedpe"))
+bedpe<- import(here("data/ENCODE_EP_clean.bedpe"))
 
 bedpe@first
 
@@ -59,6 +65,8 @@ second_liftover<- second_liftover[valid_idx]
 indx_1<- which(elementNROWS(first_liftover) >1)
 indx_2<- which(elementNROWS(second_liftover) >1)
 
+first_liftover[indx_1]
+
 select_valid_regions<- function(gr){
   if (length(gr) > 1){
     return(gr[which.max(width(gr))])
@@ -90,3 +98,4 @@ write it to file
 hg38_bedpe<- Pairs(first_liftover_valid, second_liftover_valid)
 rtracklayer::export(hg38_bedpe, here("data/ENCODE_EP_hg38.bedpe"), format="bedpe")
 ```
+

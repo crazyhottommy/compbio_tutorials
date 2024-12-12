@@ -1,0 +1,81 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-10-03"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+# Load necessary libraries
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+# Step 1: Read the raw file
+raw_data <- readLines("~/Downloads/twitter-2024-10-01-52b49f0122d5bd108bcb56a0d40e5f809f4ade7fdbf0c0e457d924d980f12230/data/tweets.js")
+
+# Step 2: Remove the JavaScript variable declaration ("window.YTD.tweets.part0 =")
+json_data <- gsub("window.YTD.tweets.part0 = ", "", raw_data)
+
+# Step 3: Collapse the data into a single string (in case it's split across multiple lines)
+json_data <- paste(json_data, collapse = "")
+
+# Step 4: Remove any trailing semi-colon at the end (if present)
+json_data <- gsub(";$", "", json_data)
+
+# Step 5: Now parse the cleaned JSON
+tweets_data <- fromJSON(json_data)
+
+head(tweets_data)
+colnames(tweets_data)
+class(tweets_data)
+
+## get the dataframe
+tweets_df<- tweets_data$tweet
+
+
+colnames(tweets_df)
+# Step 7: View the structure of the resulting dataframe
+glimpse(tweets_df)
+
+# Optionally, you can now extract specific fields like "full_text" and "created_at"
+tweets_cleaned <- tweets_df %>%
+  select(created_at, full_text, favorite_count, retweet_count) %>%
+  mutate(favorite_count = as.numeric(favorite_count),
+         retweet_count = as.numeric(retweet_count))
+  
+# View cleaned dataframe
+head(tweets_cleaned)
+
+tweets_cleaned %>%
+  arrange(desc(favorite_count)) %>%
+  View()
+
+```
+
+
+
+```{r}
+# Step 6: Convert to a tibble (dataframe) using tidyverse
+tweets_df <- as_tibble(tweets_data)
+
+# Step 7: Extract key tweet information, including URLs
+# Unnest the 'tweet' column, extract relevant fields, and handle nested 'urls'
+tweets_cleaned <- tweets_df %>%
+  unnest_wider(tweet) %>%
+  unnest_wider(entities) %>%
+  unnest_longer(urls, keep_empty = TRUE) %>%
+  mutate(url = map(urls, ~ if (is.data.frame(.x) && "url" %in% colnames(.x)) .x$url else NA_character_)) %>%
+  select(created_at, full_text, favorite_count, retweet_count, url)
+
+  
+ temp %>%
+   mutate(url = map_chr(urls, ~ if (is.data.frame(.x) && "url" %in% colnames(.x)) .x$url else NA_character_))
+ 
+ temp$url[[1]]
+# Step 8: View cleaned dataframe with URLs
+head(tweets_cleaned)
+```
+

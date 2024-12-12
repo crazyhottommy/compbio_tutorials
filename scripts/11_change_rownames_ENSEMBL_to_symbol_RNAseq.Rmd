@@ -60,7 +60,7 @@ library(org.Hs.eg.db)
 ```{r}
 
 mat<- rse_acc@assays@data$raw_counts
-
+mat[1:5, 1:5]
 ensembl_ids<- rownames(mat)
 
 
@@ -75,7 +75,7 @@ gene_symbols <- AnnotationDbi::select(org.Hs.eg.db,
 head(ensembl_ids)
 
 # remove the version number
-ensembl_ids<- esembl_ids %>%
+ensembl_ids<- ensembl_ids %>%
   stringr::str_replace("\\.[0-9]+$", "")
 
 rownames(mat)<- ensembl_ids

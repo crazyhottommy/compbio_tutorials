@@ -14,7 +14,6 @@ In Seurat V5, a Layer is a new abstraction that can encapsulate different modali
 Key Concepts of Layers
 Layered Data: Each layer can represent a modality (like RNA, protein, etc.) or a different version of data (like log-normalized versus raw counts).
 
-
 ```{r}
 options(Seurat.object.assay.version = "v5")
 library(Seurat)
@@ -57,13 +56,14 @@ pbmc3k@assays
 pbmc3k@assays$RNA
 pbmc3k[["RNA"]]
 
-Layers(pbmc3k)
 
-LayerData(pbmc3k, "counts")[1:5, 1:5]
 pbmc3k@assays$RNA$counts[1:5, 1:5]
 pbmc3k[["RNA"]]@counts[1:5, 1:5]
 
+Layers(pbmc3k)
+LayerData(pbmc3k, "counts")[1:5, 1:5]
 
+pbmc3k[["RNA"]]$data
 LayerData(pbmc3k, "data")[1:5, 1:5]
 
 
@@ -71,8 +71,6 @@ LayerData(pbmc3k, "data")[1:5, 1:5]
 GetAssayData(object = pbmc3k, slot = 'data')[1:5, 1:5]
 
 ```
-
-
 
 dimension reduction
 
@@ -91,6 +89,7 @@ pbmc3k[["pca"]]@cell.embeddings %>% head()
 Embeddings(pbmc3k, "pca") %>% head()
 Embeddings(pbmc3k, "umap") %>% head()
 
+### cell loadings
 Loadings(pbmc3k, "pca") %>% head()
 
 ```
@@ -108,6 +107,8 @@ class(obj[["RNA"]])
 obj[["RNA"]]<- as(obj[["RNA"]], Class= "Assay5")
 
 class(obj[["RNA"]])
+
+pbmc3k_v3 <- Convert(pbmc3k, version = "3.0")
 
 ```
 
