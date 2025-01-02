@@ -1,0 +1,174 @@
+---
+title: "k-means"
+output: html_document
+date: "2024-12-31"
+editor_options: 
+  chunk_output_type: console
+---
+
+Let's use k-means clustering 
+
+```{r}
+# install the package if you do not have it.
+# install.packages("ISLR")
+library(ISLR)
+
+ncidat<- t(NCI60$data)
+colnames(ncidat)<- NCI60$labs
+
+dim(ncidat)
+
+ncidat[1:5, 1:50]
+```
+
+
+```{r}
+unique(colnames(ncidat))
+```
+
+### PCA analysis
+
+```{r}
+
+X<- t(scale(t(ncidat),center=TRUE,scale= TRUE))
+
+# we transpose X again for svd, or use prcomp 
+sv = svd(t(X))
+U = sv$u
+V = sv$v
+D = sv$d
+```
+
+Further reading https://divingintogeneticsandgenomics.com/post/pca-in-action/
+and https://divingintogeneticsandgenomics.com/post/pca-projection/
+
+```{r}
+Z = t(X)%*%V
+
+pc_dat<- data.frame(type = rownames(Z), PC1 = Z[,1], PC2= Z[,2])
+
+library(ggplot2)
+
+ggplot(pc_dat,aes(x=PC1, y=PC2, col=type)) + 
+  geom_point() +
+  theme_classic(base_size = 14)
+```
+
+### K-means on the raw data 
+
+kmeans is by rows by default.
+
+```{r}
+library(ComplexHeatmap)
+
+
+K<- 9
+
+km<- kmeans(t(X), centers = K)
+
+table(km$cluster)
+```
+
+### set.seed() to make it reproducible 
+
+```{r}
+set.seed(123)
+
+km<- kmeans(t(X), centers = K)
+table(km$cluster)
+```
+
+In your original matrix:
+
+Rows (genes): 6830 — these are the features or "attributes" of your samples.
+Columns (samples): 64 — these are what you want to group (cluster).
+
+When you run K-means clustering on the samples `t(X)`, the robot helper is grouping the columns based on their similarity across the 6830 genes.
+
+### Dimensions of Outputs When Clustering Samples
+
+Cluster Assignments:
+For each of the 64 samples, K-means will assign it to one of the 9 groups (clusters). This is a vector of length 64.
+
+Dimension: 64 (one number per sample).
+
+```{r}
+km$cluster 
+
+length(km$cluster)
+```
+
+
+visualize it with a heatmap 
+```{r}
+km$cluster %>% 
+  tibble::enframe() %>%
+  janitor::tabyl(name, value) %>%
+  tibble::column_to_rownames(var="name") %>%
+  as.matrix() %>%
+  Heatmap(cluster_columns = FALSE)
+```
+
+Centers Matrix:
+
+The centers matrix now represents the "average sample" for each cluster. Each center is calculated based on the genes (rows). Since you have 9 clusters and each cluster center is described by the 6840 genes, the centers matrix will have:
+
+9 rows (clusters) × 6840 columns (genes).
+
+```{r}
+cens<- km$centers
+
+dim(cens)
+```
+
+
+###  how do we visualize K-means results?
+
+overlay K-means result on the PCA plot.
+
+```{r}
+par(mfrow=c(1,1))
+
+plot(Z[,1],Z[,2],col=km$cluster,type="n")
+
+text(Z[,1],Z[,2],colnames(ncidat),cex=.75,col=km$cluster)
+
+
+points(cens%*%V[,1],cens%*%V[,2],col=1:K,pch=16,cex=3)
+```
+
+### K-means on the PCA space
+
+```{r}
+Z
+
+km2<- kmeans(Z, centers = K)
+
+km2$cluster %>% 
+  tibble::enframe() %>%
+  janitor::tabyl(name, value) %>%
+  tibble::column_to_rownames(var="name") %>%
+  as.matrix() %>%
+  Heatmap(cluster_columns = FALSE)
+```
+
+
+K-means on the PCA-transformed Z matrix is generally preferred for clustering when working with high-dimensional data like gene expression. It focuses on the meaningful variation while avoiding noise and redundancy.
+
+
+Reduces noise and redundancy: PCA captures the most important variation in the data, filtering out noise or low-variance genes.
+- Better distance metrics: By focusing on a few top principal components, clustering is based on meaningful differences rather than noise.
+
+- Efficient computation: Working in a smaller-dimensional space speeds up K-means, especially with large datasets.
+
+
+K-means on the original matrix can be useful if you suspect that low-variance genes or subtle patterns might be biologically relevant and want to preserve them.
+
+
+| **Aspect**                 | **Original Matrix**                | **PCA (Z Matrix)**                        |
+|----------------------------|------------------------------------|------------------------------------------|
+| **Dimensionality**          | High (6840 genes)                | Low (e.g., 10-50 PCs, depending on variance) |
+| **Noise Sensitivity**       | High                              | Low                                      |
+| **Focus**                   | Includes all variance             | Focuses on major variance                |
+| **Computational Cost**      | Higher                            | Lower                                    |
+| **Risk of Overfitting**     | Higher (due to noise)             | Lower                                    |
