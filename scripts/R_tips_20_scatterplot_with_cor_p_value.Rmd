@@ -1,0 +1,58 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-01-06"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+# BiocManager::install(c("airway", "ggpubr","DESEq2"))
+
+library(airway)  
+library(ggpubr)  
+library(DESeq2)  # for normalization
+
+data("airway")
+dds <- DESeqDataSet(airway, design = ~ cell + dex)
+
+```
+
+The airway dataset contains RNA-seq data from airway smooth muscle cells.
+
+```{r}
+dds <- DESeq(dds)  
+norm_counts <- counts(dds, normalized = TRUE) 
+```
+
+
+```{r}
+gene1 <- "ENSG00000075624"  # ACTB (Beta-actin)  
+gene2 <- "ENSG00000111640"  # GAPDH  
+
+```
+Both ACTB and GAPDH are well-known housekeeping genes commonly used as controls in gene expression studies.
+
+```{r}
+plot_data <- data.frame(  
+  Gene1 = norm_counts[gene1, ],  
+  Gene2 = norm_counts[gene2, ]  
+)
+
+data<- iris
+```
+
+```{r}
+p <- ggscatter(data,  
+               x = "Sepal.Length",  
+               y = "Petal.Length",  
+               add = "reg.line",  
+               conf.int = TRUE,  
+               cor.coef = TRUE,  
+               cor.method = "pearson",  
+               cor.coeff.args = list(label.sep = "\n"),  
+               xlab = "Sepal Length",  
+               ylab = "Petal Length")  
+print(p)  
+
+```
