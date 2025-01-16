@@ -1,0 +1,76 @@
+---
+title: "get gene length"
+output: html_document
+date: "2025-01-16"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#install.packages("BiocManager")
+#BiocManager::install("TxDb.Mmusculus.UCSC.mm9.knownGene")
+#BiocManager::install("org.Mm.eg.db")
+
+library(TxDb.Mmusculus.UCSC.mm9.knownGene)
+library(org.Mm.eg.db)
+```
+
+Now, we can retrieve the gene data:
+```{r}
+txdb <- TxDb.Mmusculus.UCSC.mm9.knownGene
+mm9_genes <- genes(txdb)
+mm9_genes
+```
+
+To map the Entrez ID to gene symbols, we use: 
+
+```{r}
+gene_symbol <- AnnotationDbi::select(org.Mm.eg.db, keys = mm9_genes$gene_id, 
+                                     columns = "SYMBOL", keytype = "ENTREZID")
+```
+
+Make sure the gene IDs match: 
+
+```{r}
+all.equal(mm9_genes$gene_id, gene_symbol$ENTREZID)
+
+# Add gene symbols to the data: 
+mm9_genes$symbol <- gene_symbol$SYMBOL
+```
+
+```{r}
+width(mm9_genes)
+
+df <- data.frame(EntrezID = mm9_genes$gene_id, 
+                 Symbol = mm9_genes$symbol, 
+                 Gene_length = width(mm9_genes))
+
+head(df)
+```
+
+Why is this useful? When normalizing H3K36me3 signals (found in gene bodies), you can use gene lengths for proper normalization. Also, for RNA-seq, exon lengths are essential for calculating metrics like RPKM (though TPM is preferred now).
+
+### exon lengths 
+
+```{r}
+exons<- exonsBy(txdb, by = "gene")
+exons
+```
+
+This returns a GRangesList object and each element of the list is a GRanges containing all the exons for that gene.
+
+Let’s calculate the total exon lengths for each gene by the width function
+
+```{r}
+width(exons)
+
+head(sum(width(exons)))
+```
+
+```{r}
+exon_len<- sum(width(exons)) %>%
+      tibble::enframe(name = "ENTREZID", value = "exon_length")
+
+head(exon_len)
+```
+
